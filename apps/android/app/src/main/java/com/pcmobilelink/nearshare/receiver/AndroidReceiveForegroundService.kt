@@ -214,7 +214,9 @@ class AndroidReceiveForegroundService : Service() {
         val openIntent = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            Intent(this, MainActivity::class.java)
+                .setPackage(packageName)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val stopIntent = PendingIntent.getService(
@@ -303,15 +305,15 @@ class AndroidReceiveForegroundService : Service() {
         private const val NOTIFICATION_ID = 1202
         private const val TAG = "NearShare"
 
-        fun startManualIntent(packageContext: Context?): Intent {
+        fun startManualIntent(packageContext: Context): Intent {
             return receiveIntent(packageContext, ACTION_START_MANUAL_RECEIVE)
         }
 
-        fun startAlwaysOnIntent(packageContext: Context?): Intent {
+        fun startAlwaysOnIntent(packageContext: Context): Intent {
             return receiveIntent(packageContext, ACTION_START_ALWAYS_ON_RECEIVE)
         }
 
-        fun stopIntent(packageContext: Context?): Intent {
+        fun stopIntent(packageContext: Context): Intent {
             return receiveIntent(packageContext, ACTION_STOP_RECEIVE)
         }
 
@@ -327,12 +329,10 @@ class AndroidReceiveForegroundService : Service() {
             context.startService(stopIntent(context))
         }
 
-        private fun receiveIntent(packageContext: Context?, action: String): Intent {
-            return if (packageContext == null) {
-                Intent(action)
-            } else {
-                Intent(packageContext, AndroidReceiveForegroundService::class.java).setAction(action)
-            }
+        private fun receiveIntent(packageContext: Context, action: String): Intent {
+            return Intent(packageContext, AndroidReceiveForegroundService::class.java)
+                .setPackage(packageContext.packageName)
+                .setAction(action)
         }
 
         private fun startForegroundIntent(context: Context, intent: Intent) {

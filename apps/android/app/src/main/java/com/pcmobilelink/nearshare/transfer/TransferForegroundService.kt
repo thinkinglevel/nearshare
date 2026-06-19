@@ -340,6 +340,7 @@ class TransferForegroundService : Service() {
             ?.pcDeviceId
             .orEmpty()
         val intent = Intent(this, TransferForegroundService::class.java)
+            .setPackage(packageName)
             .setAction(action)
             .putExtra(EXTRA_BATCH_ID, batchId)
             .putExtra(EXTRA_PC_DEVICE_ID, pcDeviceId)
