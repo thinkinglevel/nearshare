@@ -50,6 +50,7 @@ class NearShareBootReceiver : BroadcastReceiver() {
 
     private fun buildResumeNotification(context: Context): Notification {
         val openIntent = Intent(context, MainActivity::class.java)
+            .setPackage(context.packageName)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pendingIntent = PendingIntent.getActivity(
             context,
