@@ -42,8 +42,8 @@ jobs:
 
       - name: Install Android SDK components
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
@@ -82,5 +82,8 @@ jobs:
       - name: Build Windows solution
         run: dotnet build PCMobileLink.Windows.sln --configuration Debug --no-restore
 
-      - name: Run Windows tests
-        run: dotnet test PCMobileLink.Windows.sln --configuration Debug --no-build --verbosity normal
+      - name: Run Windows core tests
+        run: dotnet test tests/PCMobileLink.Windows.Core.Tests/PCMobileLink.Windows.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+      - name: Run Windows infrastructure tests
+        run: dotnet test tests/PCMobileLink.Windows.Infrastructure.Tests/PCMobileLink.Windows.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal -- xUnit.ParallelizeTestCollections=false
