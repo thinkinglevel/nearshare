@@ -73,9 +73,9 @@ dependencies {
     implementation("androidx.camera:camera-view:1.6.1")
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("com.google.zxing:core:3.5.4")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20250517")
+    testImplementation("org.json:json:20260522")
 }
