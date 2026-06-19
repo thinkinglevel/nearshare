@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible NearShare bug
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include secrets, private keys, pairing secrets, or exploit details. Use the security policy for vulnerabilities.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android
+        - Windows
+        - Pairing/protocol
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest reliable reproduction.
+      placeholder: |
+        1. Pair device...
+        2. Start receive mode...
+        3. Send file...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS versions, device model, network shape, and NearShare version or artifact filename.
+      placeholder: |
+        Android version:
+        Windows version:
+        Network: same Wi-Fi / Android hotspot / private connection
+        NearShare version or APK/installer filename:
+        Commit, only for development builds:
+    validations:
+      required: false

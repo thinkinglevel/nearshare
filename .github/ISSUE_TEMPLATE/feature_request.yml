@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a NearShare feature or workflow change
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the workflow and user-visible behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope area
+      options:
+        - Android sending
+        - Android receiving
+        - Windows sending
+        - Windows receiving
+        - Pairing/discovery
+        - Private connection
+        - Release/update flow
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Trade-offs and risks
+      description: Include security, background behavior, firewall, storage, or local-network implications if relevant.
+    validations:
+      required: false
+

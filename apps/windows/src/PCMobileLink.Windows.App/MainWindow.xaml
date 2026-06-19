@@ -1,0 +1,977 @@
+﻿<Window x:Class="PCMobileLink.Windows.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="NearShare"
+        Icon="Assets/AppIcon.ico"
+        Height="720"
+        MinHeight="640"
+        Width="1120"
+        MinWidth="960"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource AppBackgroundBrush}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="232" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Background="#FFFFFF"
+                BorderBrush="{StaticResource BorderBrushSoft}"
+                BorderThickness="0,0,1,0"
+                Padding="22,28">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="28" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="42" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Image Source="Assets/AppIcon.png"
+                               Width="42"
+                               Height="42"
+                               Stretch="Uniform"
+                               VerticalAlignment="Center" />
+
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="NearShare"
+                                       FontFamily="Segoe UI Variable Display, Segoe UI"
+                                       FontSize="25"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="Nearby file sharing"
+                                       Style="{StaticResource BodyText}"
+                                       FontSize="12"
+                                       Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2">
+                    <Button x:Name="DashboardNavButton"
+                            Content="Dashboard"
+                            Style="{StaticResource NavButton}"
+                            Click="DashboardNavButton_Click"
+                            Margin="0,0,0,8" />
+                    <Button x:Name="DevicesNavButton"
+                            Content="Devices"
+                            Style="{StaticResource NavButton}"
+                            Click="DevicesNavButton_Click" />
+                </StackPanel>
+
+                <Button x:Name="SettingsNavButton"
+                        Grid.Row="4"
+                        Content="Settings"
+                        Style="{StaticResource NavButton}"
+                        Click="SettingsNavButton_Click" />
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <Grid Margin="34,30,34,34">
+                <Grid x:Name="DashboardView">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="14" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="Dashboard"
+                                       FontFamily="Segoe UI Variable Display, Segoe UI"
+                                       FontSize="32"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="Send, receive, and track nearby transfers from one place."
+                                       Style="{StaticResource BodyText}"
+                                       Margin="0,6,0,0" />
+                        </StackPanel>
+
+                        <Border Grid.Row="2"
+                                Style="{StaticResource Card}"
+                                Padding="14,10"
+                                HorizontalAlignment="Stretch">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Ellipse Grid.Column="0"
+                                         Width="9"
+                                         Height="9"
+                                         Fill="{StaticResource WaitingBrush}"
+                                         Margin="0,5,9,0"
+                                         VerticalAlignment="Top" />
+                                <TextBlock x:Name="StatusTextBlock"
+                                           Grid.Column="1"
+                                           Text="Pairing not set up yet"
+                                           FontSize="13"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource SecondaryTextBrush}" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <Border Grid.Row="2" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel>
+                                <TextBlock Text="Current save path"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource SecondaryTextBrush}" />
+                                <TextBlock x:Name="DashboardSavePathTextBlock"
+                                           Text="Downloads"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="0,8,0,0" />
+                                <TextBlock Text="Files received from paired devices will be saved here."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,6,0,0" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <Button Content="Open"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="OpenSavePathButton_Click"
+                                        Margin="0,0,10,0" />
+                                <Button Content="Change"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="ChangeSavePathButton_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="14" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="12" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel>
+                                    <TextBlock Text="Send"
+                                               FontSize="24"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Choose files on this PC, then pick a paired device."
+                                               Style="{StaticResource BodyText}"
+                                               Margin="0,8,0,0" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2">
+                                    <TextBlock Text="Paired device"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource SecondaryTextBrush}" />
+                                    <ComboBox x:Name="SendDeviceComboBox"
+                                              MinWidth="240"
+                                              Margin="0,6,0,0"
+                                              Style="{StaticResource ThemedComboBox}"
+                                              SelectionChanged="SendDeviceComboBox_SelectionChanged">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DeviceName}"
+                                                           FontFamily="Segoe UI Variable Text, Segoe UI"
+                                                           FontSize="14"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <Button x:Name="SendFilesButton"
+                                        Grid.Row="4"
+                                        Content="Send files"
+                                        Style="{StaticResource PrimaryButton}"
+                                        HorizontalAlignment="Left"
+                                        Click="SendFilesButton_Click"
+                                        IsEnabled="False" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="14" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Receive"
+                                                   FontSize="24"
+                                                   FontWeight="SemiBold" />
+                                        <Border x:Name="ReceiveModeBadgeBorder"
+                                                Grid.Column="1"
+                                                Background="#FEF3C7"
+                                                BorderBrush="#FDE68A"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="12,6"
+                                                MinHeight="30"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                            <TextBlock x:Name="ReceiveModeBadgeTextBlock"
+                                                       Text="Manual mode"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#92400E" />
+                                        </Border>
+                                    </Grid>
+                                    <TextBlock Text="Receive mode comes from Settings: Manual receive or Always on."
+                                               Style="{StaticResource BodyText}"
+                                               Margin="0,8,0,0" />
+                                </StackPanel>
+
+                                <Button x:Name="ReceiveNowButton"
+                                        Grid.Row="2"
+                                        Content="Receive now"
+                                        Style="{StaticResource PrimaryButton}"
+                                        HorizontalAlignment="Left"
+                                        Click="ReceiveNowButton_Click" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <Border Grid.Row="6" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Private connection"
+                                       FontSize="22"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="Use the details shown on the other device. Failed sends retry after the connection starts."
+                                       Style="{StaticResource BodyText}"
+                                       Margin="0,8,0,18" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Connection name"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource SecondaryTextBrush}" />
+                                    <TextBox x:Name="PrivateConnectionNameTextBox"
+                                             Height="42"
+                                             Margin="0,6,0,0"
+                                             MinWidth="240"
+                                             Style="{StaticResource ThemedTextBox}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Password"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource SecondaryTextBrush}" />
+                                    <TextBox x:Name="PrivateConnectionPasswordTextBox"
+                                             Height="42"
+                                             Margin="0,6,0,0"
+                                             MinWidth="240"
+                                             Style="{StaticResource ThemedTextBox}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Security code"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource SecondaryTextBrush}"
+                                       Margin="0,16,0,6" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="18" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0"
+                                      Cursor="IBeam"
+                                      MouseDown="PrivateConnectionCodeInputHost_MouseDown">
+                                    <StackPanel x:Name="PrivateConnectionCodeBoxes"
+                                                Orientation="Horizontal">
+                                        <Border Style="{StaticResource SegmentedCodeBox}">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}" Margin="8,0,7,0">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}" Margin="8,0,7,0">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border Style="{StaticResource SegmentedCodeBox}" Margin="0">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBox x:Name="PrivateConnectionCodeTextBox"
+                                             Width="1"
+                                             Height="1"
+                                             Opacity="0"
+                                             MaxLength="11"
+                                             CharacterCasing="Upper"
+                                             TextChanged="PrivateConnectionCodeTextBox_TextChanged"
+                                             GotKeyboardFocus="SegmentedCodeTextBox_GotKeyboardFocus"
+                                             LostKeyboardFocus="SegmentedCodeTextBox_LostKeyboardFocus" />
+                                </Grid>
+
+                                <Button x:Name="ConnectPrivateConnectionButton"
+                                        Grid.Column="2"
+                                        Content="Connect this PC"
+                                        Style="{StaticResource SecondaryButton}"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Click="ConnectPrivateConnectionButton_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="TransferProgressCard"
+                            Grid.Row="8"
+                            Style="{StaticResource Card}"
+                            Visibility="Collapsed">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="18" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="14" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Transfer progress"
+                                               FontSize="22"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock x:Name="TransferProgressStatusTextBlock"
+                                               Text="No active transfer. Progress will show here after Send or Receive starts."
+                                               Style="{StaticResource BodyText}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,6,0,0" />
+                                </StackPanel>
+                                <TextBlock x:Name="CompletedCountTextBlock"
+                                           Grid.Column="1"
+                                           Text="0 of 0 completed"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+
+                            <ProgressBar x:Name="TransferProgressBar"
+                                         Grid.Row="2"
+                                         Height="12"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Value="0"
+                                         Foreground="{StaticResource PrimaryBrush}"
+                                         Background="#E5E7EB" />
+
+                            <Grid Grid.Row="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="18" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                        Background="#F8FAFC"
+                                        BorderBrush="{StaticResource BorderBrushSoft}"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Current device"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                                        <TextBlock x:Name="CurrentDeviceTextBlock"
+                                                   Text="No device selected"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2"
+                                        Background="#F8FAFC"
+                                        BorderBrush="{StaticResource BorderBrushSoft}"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Current file"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                                        <TextBlock x:Name="CurrentFileTextBlock"
+                                                   Text="Nothing transferring"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Grid x:Name="DevicesView" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="Devices"
+                                   FontFamily="Segoe UI Variable Display, Segoe UI"
+                                   FontSize="32"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="Pair a new device, then manage paired and currently connected devices here."
+                                   Style="{StaticResource BodyText}"
+                                   Margin="0,6,0,0" />
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Pair new device"
+                                               FontSize="24"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Open NearShare on another device and scan or copy this PC's pairing code."
+                                               Style="{StaticResource BodyText}"
+                                               Margin="0,8,0,0" />
+                                    <TextBlock Text="The QR starts a short-lived local HTTPS pairing listener. The other device confirms the pinned certificate fingerprint from this payload."
+                                               FontSize="12"
+                                               Foreground="{StaticResource SecondaryTextBrush}"
+                                               Margin="0,12,0,0" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Content="Pair device"
+                                        Style="{StaticResource PrimaryButton}"
+                                        Click="PairPhoneButton_Click"
+                                        VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border x:Name="PairingOfferPanel"
+                                    Visibility="Collapsed"
+                                    Background="#F8FAFC"
+                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                    BorderThickness="1"
+                                    CornerRadius="14"
+                                    Padding="18"
+                                    Margin="0,20,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="20" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Background="White"
+                                            BorderBrush="{StaticResource BorderBrushSoft}"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="12">
+                                        <Image x:Name="PairingQrImage"
+                                               Width="180"
+                                               Height="180"
+                                               Stretch="Uniform" />
+                                    </Border>
+
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Scan or enter this code"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock x:Name="PairingOfferStatusTextBlock"
+                                                   Text="Offer expires in 5 minutes."
+                                                   Style="{StaticResource BodyText}"
+                                                   Margin="0,6,0,12" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                            <Border Background="#EFF6FF"
+                                                    BorderBrush="#BFDBFE"
+                                                    BorderThickness="1"
+                                                    CornerRadius="12"
+                                                    Padding="13,11"
+                                                    Margin="0,0,8,0">
+                                                <TextBlock x:Name="PairingShortCodePart1TextBlock"
+                                                           Text="---"
+                                                           FontFamily="Cascadia Mono, Consolas"
+                                                           FontSize="22"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource PrimaryBrush}" />
+                                            </Border>
+                                            <Border Background="#EFF6FF"
+                                                    BorderBrush="#BFDBFE"
+                                                    BorderThickness="1"
+                                                    CornerRadius="12"
+                                                    Padding="13,11"
+                                                    Margin="0,0,8,0">
+                                                <TextBlock x:Name="PairingShortCodePart2TextBlock"
+                                                           Text="---"
+                                                           FontFamily="Cascadia Mono, Consolas"
+                                                           FontSize="22"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource PrimaryBrush}" />
+                                            </Border>
+                                            <Border Background="#EFF6FF"
+                                                    BorderBrush="#BFDBFE"
+                                                    BorderThickness="1"
+                                                    CornerRadius="12"
+                                                    Padding="13,11">
+                                                <TextBlock x:Name="PairingShortCodePart3TextBlock"
+                                                           Text="---"
+                                                           FontFamily="Cascadia Mono, Consolas"
+                                                           FontSize="22"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource PrimaryBrush}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <Button Content="Copy setup link"
+                                                Style="{StaticResource SecondaryButton}"
+                                                HorizontalAlignment="Left"
+                                                Click="CopyPairingSetupLinkButton_Click" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border x:Name="PendingPairingRequestPanel"
+                                    Visibility="Collapsed"
+                                    Background="#EFF6FF"
+                                    BorderBrush="#BFDBFE"
+                                    BorderThickness="1"
+                                    CornerRadius="14"
+                                    Padding="18"
+                                    Margin="0,16,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel>
+                                        <TextBlock x:Name="PendingPairingRequestTitleTextBlock"
+                                                   Text="Device wants to pair"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock x:Name="PendingPairingRequestDetailTextBlock"
+                                                   Text="Confirm this request only if it came from your other device."
+                                                   Style="{StaticResource BodyText}"
+                                                   Margin="0,6,0,0" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                VerticalAlignment="Center"
+                                                Margin="18,0,0,0">
+                                        <Button Content="Reject"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Click="RejectPairingRequestButton_Click"
+                                                Margin="0,0,10,0" />
+                                        <Button Content="Approve"
+                                                Style="{StaticResource PrimaryButton}"
+                                                Click="ApprovePairingRequestButton_Click" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Background="#F8FAFC"
+                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                    BorderThickness="1"
+                                    CornerRadius="14"
+                                    Padding="18"
+                                    Margin="0,16,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Pair from another device"
+                                               FontSize="18"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Enter the 9-character code shown by another device, then approve the request on that device."
+                                               Style="{StaticResource BodyText}"
+                                               Margin="0,6,0,12" />
+                                    <Grid HorizontalAlignment="Left"
+                                          Cursor="IBeam"
+                                          MouseDown="PairAnotherDeviceCodeInputHost_MouseDown">
+                                        <StackPanel x:Name="PairAnotherDeviceCodeBoxes"
+                                                    Orientation="Horizontal">
+                                            <Border Style="{StaticResource SegmentedCodeBox}">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}" Margin="8,0,7,0">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}" Margin="8,0,7,0">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border Style="{StaticResource SegmentedCodeBox}" Margin="0">
+                                                <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBox x:Name="PairAnotherDeviceCodeTextBox"
+                                                 Width="1"
+                                                 Height="1"
+                                                 Opacity="0"
+                                                 MaxLength="11"
+                                                 CharacterCasing="Upper"
+                                                 TextChanged="PairAnotherDeviceCodeTextBox_TextChanged"
+                                                 GotKeyboardFocus="SegmentedCodeTextBox_GotKeyboardFocus"
+                                                 LostKeyboardFocus="SegmentedCodeTextBox_LostKeyboardFocus" />
+                                    </Grid>
+                                    <Button Content="Connect this PC"
+                                            Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Left"
+                                            Margin="0,12,0,0"
+                                            Click="PairAnotherDeviceButton_Click" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Currently connected"
+                                           FontSize="22"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Reachable paired devices will appear here when they are on the same local network path."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,8,0,16" />
+                                <Border Background="#F8FAFC"
+                                        BorderBrush="{StaticResource BorderBrushSoft}"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="No connected devices"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="Current network reachability is separate from pairing trust."
+                                                   Style="{StaticResource BodyText}"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Paired devices"
+                                           FontSize="22"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Trusted devices will be listed here with last seen and receive readiness details."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,8,0,16" />
+                                <Border x:Name="PairedDevicesEmptyPanel"
+                                        Background="#F8FAFC"
+                                        BorderBrush="{StaticResource BorderBrushSoft}"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="No paired devices yet"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="Use Pair new device to establish trust before transfer features are enabled."
+                                                   Style="{StaticResource BodyText}"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <ItemsControl x:Name="PairedDevicesItemsControl"
+                                              Visibility="Collapsed">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#F8FAFC"
+                                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="12"
+                                                    Padding="16"
+                                                    Margin="0,0,0,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DeviceName}"
+                                                                   FontSize="16"
+                                                                   FontWeight="SemiBold" />
+                                                        <TextBlock Text="{Binding DeviceId}"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,4,0,0" />
+                                                        <TextBlock Text="Paired and trusted for future authenticated transfers."
+                                                                   Style="{StaticResource BodyText}"
+                                                                   Margin="0,6,0,0" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1"
+                                                            Content="Remove"
+                                                            Style="{StaticResource DangerButton}"
+                                                            Click="RemovePairedDeviceButton_Click"
+                                                            VerticalAlignment="Center"
+                                                            Margin="16,0,0,0" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <Grid x:Name="SettingsView" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="22" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="Settings"
+                                   FontFamily="Segoe UI Variable Display, Segoe UI"
+                                   FontSize="32"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="Control receive behavior, save path, and Windows Explorer integration."
+                                   Style="{StaticResource BodyText}"
+                                   Margin="0,6,0,0" />
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Receive mode"
+                                           FontSize="22"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Manual receive is the safe default. Always on will be opt-in and visible when implemented."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,8,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <Button x:Name="ManualReceiveModeButton"
+                                        Content="Manual receive"
+                                        Style="{StaticResource ChipButton}"
+                                        Click="ManualReceiveModeButton_Click"
+                                        Margin="0,0,10,0" />
+                                <Button x:Name="AlwaysOnReceiveModeButton"
+                                        Content="Always on"
+                                        Style="{StaticResource ChipButton}"
+                                        Click="AlwaysOnReceiveModeButton_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="4" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Explorer integration"
+                                           FontSize="22"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Install or remove the right-click action: Send using NearShare, with paired devices as submenu targets."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,8,0,0" />
+                                <TextBlock Text="The submenu is generated from the paired-device list on this PC. Reinstall after pairing or removing devices to refresh it."
+                                           FontSize="12"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,12,0,0" />
+                                <TextBlock x:Name="ExplorerMenuStatusTextBlock"
+                                           Text="Status: checking..."
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource PrimaryTextBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,12,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <Button Content="Install"
+                                        x:Name="InstallExplorerMenuButton"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="InstallExplorerMenuButton_Click"
+                                        Margin="0,0,10,0" />
+                                <Button Content="Uninstall"
+                                        x:Name="UninstallExplorerMenuButton"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="UninstallExplorerMenuButton_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Current save path"
+                                           FontSize="22"
+                                           FontWeight="SemiBold" />
+                                <TextBlock x:Name="SettingsSavePathTextBlock"
+                                           Text="Downloads"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Margin="0,12,0,0" />
+                                <TextBlock Text="The dashboard shows this path at the top."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,4,0,16" />
+                                <Button Content="Change save path"
+                                        Style="{StaticResource SecondaryButton}"
+                                        HorizontalAlignment="Left"
+                                        Click="ChangeSavePathButton_Click" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="App behavior"
+                                           FontSize="22"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Start with Windows can launch NearShare hidden to the tray and start always-on receiving after login. No cloud account or telemetry is planned."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,8,0,16" />
+                                <Button x:Name="StartWithWindowsButton"
+                                        Content="Start with Windows: Off"
+                                        Style="{StaticResource SecondaryButton}"
+                                        HorizontalAlignment="Left"
+                                        Click="StartWithWindowsButton_Click" />
+                                <Button x:Name="TransferSoundsButton"
+                                        Content="Transfer sounds: On"
+                                        Style="{StaticResource SecondaryButton}"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,10,0,0"
+                                        Click="TransferSoundsButton_Click" />
+                                <TextBlock x:Name="UpdateStatusTextBlock"
+                                           Text="Installed version 1.0. Checks use GitHub Releases."
+                                           Style="{StaticResource BodyText}"
+                                           Margin="0,18,0,10" />
+                                <Button x:Name="CheckForUpdatesButton"
+                                        Content="Check for updates"
+                                        Style="{StaticResource SecondaryButton}"
+                                        HorizontalAlignment="Left"
+                                        Click="CheckForUpdatesButton_Click" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</Window>

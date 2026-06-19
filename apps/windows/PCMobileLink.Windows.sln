@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{59A1C0BE-62F6-4BF8-9564-31B38F1A2419}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PCMobileLink.Windows.App", "src\PCMobileLink.Windows.App\PCMobileLink.Windows.App.csproj", "{073AB5DC-ED4C-42EF-8C9F-16E65D2C52BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PCMobileLink.Windows.Core", "src\PCMobileLink.Windows.Core\PCMobileLink.Windows.Core.csproj", "{6151FBC9-3071-44E7-BFDD-392A7D5F6356}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PCMobileLink.Windows.Infrastructure", "src\PCMobileLink.Windows.Infrastructure\PCMobileLink.Windows.Infrastructure.csproj", "{15544EF7-93DF-40A5-B9D5-B2914821BBC8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{59855C89-9004-4414-951B-727839CBDAFE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PCMobileLink.Windows.Core.Tests", "tests\PCMobileLink.Windows.Core.Tests\PCMobileLink.Windows.Core.Tests.csproj", "{19970624-20A2-4320-8F2F-C00912E9E03E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PCMobileLink.Windows.Infrastructure.Tests", "tests\PCMobileLink.Windows.Infrastructure.Tests\PCMobileLink.Windows.Infrastructure.Tests.csproj", "{4B0A6D24-EA6E-4045-959A-1F73AA71BDED}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{073AB5DC-ED4C-42EF-8C9F-16E65D2C52BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{073AB5DC-ED4C-42EF-8C9F-16E65D2C52BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{073AB5DC-ED4C-42EF-8C9F-16E65D2C52BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{073AB5DC-ED4C-42EF-8C9F-16E65D2C52BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6151FBC9-3071-44E7-BFDD-392A7D5F6356}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6151FBC9-3071-44E7-BFDD-392A7D5F6356}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6151FBC9-3071-44E7-BFDD-392A7D5F6356}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6151FBC9-3071-44E7-BFDD-392A7D5F6356}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15544EF7-93DF-40A5-B9D5-B2914821BBC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15544EF7-93DF-40A5-B9D5-B2914821BBC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15544EF7-93DF-40A5-B9D5-B2914821BBC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15544EF7-93DF-40A5-B9D5-B2914821BBC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19970624-20A2-4320-8F2F-C00912E9E03E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19970624-20A2-4320-8F2F-C00912E9E03E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19970624-20A2-4320-8F2F-C00912E9E03E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19970624-20A2-4320-8F2F-C00912E9E03E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B0A6D24-EA6E-4045-959A-1F73AA71BDED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B0A6D24-EA6E-4045-959A-1F73AA71BDED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B0A6D24-EA6E-4045-959A-1F73AA71BDED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B0A6D24-EA6E-4045-959A-1F73AA71BDED}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{073AB5DC-ED4C-42EF-8C9F-16E65D2C52BE} = {59A1C0BE-62F6-4BF8-9564-31B38F1A2419}
+		{6151FBC9-3071-44E7-BFDD-392A7D5F6356} = {59A1C0BE-62F6-4BF8-9564-31B38F1A2419}
+		{15544EF7-93DF-40A5-B9D5-B2914821BBC8} = {59A1C0BE-62F6-4BF8-9564-31B38F1A2419}
+		{19970624-20A2-4320-8F2F-C00912E9E03E} = {59855C89-9004-4414-951B-727839CBDAFE}
+		{4B0A6D24-EA6E-4045-959A-1F73AA71BDED} = {59855C89-9004-4414-951B-727839CBDAFE}
+	EndGlobalSection
+EndGlobal
