@@ -1,6 +1,7 @@
 package com.pcmobilelink.nearshare.pairing
 
 import android.content.Context
+import com.pcmobilelink.nearshare.diagnostics.NearShareDiagnostics
 import com.pcmobilelink.nearshare.receiver.AndroidReceiveCertificateStore
 import com.pcmobilelink.nearshare.receiver.AndroidReceiveEndpointMetadata
 import com.pcmobilelink.nearshare.receiver.AndroidReceiveHttpServer
@@ -29,6 +30,7 @@ class AndroidLocalPairingServer private constructor(
     private val sessionManager: AndroidReceiveSessionManager,
     private val onPendingRequestChanged: () -> Unit,
     private val server: AndroidReceiveHttpServer,
+    private val diagnostics: (String) -> Unit,
 ) : Closeable {
     private val pendingRequestsLock = Any()
     private val pendingRequests = mutableListOf<PendingRequest>()
@@ -61,6 +63,7 @@ class AndroidLocalPairingServer private constructor(
             shortCode = shortCode,
             deviceName = deviceName,
             pairingUri = encodedOffer,
+            diagnostics = diagnostics,
         ).also { responder -> responder.start() }
         return this
     }
@@ -295,6 +298,7 @@ class AndroidLocalPairingServer private constructor(
             val server = AndroidReceiveHttpServer(
                 certificate = certificate,
                 requestHandler = { request -> localServer.handle(request) },
+                diagnostics = { message -> NearShareDiagnostics.info(appContext, message) },
             )
             localServer = AndroidLocalPairingServer(
                 pairedPcStore = pairedPcStore,
@@ -307,6 +311,7 @@ class AndroidLocalPairingServer private constructor(
                 sessionManager = sessionManager,
                 onPendingRequestChanged = onPendingRequestChanged,
                 server = server,
+                diagnostics = { message -> NearShareDiagnostics.info(appContext, message) },
             )
             return localServer.start()
         }

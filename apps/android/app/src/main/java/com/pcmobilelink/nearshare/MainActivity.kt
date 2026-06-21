@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
     private var joinedPrivateConnectionName: String? = null
     private var pendingPrivateConnectionRetryBatchId: String? = null
     private var privateConnectionAutoReceiveStarted = false
+    private var privateConnectionStartedPairingOffer = false
     private var pendingReceiveNotificationPermissionAction: (() -> Unit)? = null
     private var pendingUpdateDownloadRequest: ReleaseUpdateCheckResult.Checked? = null
     private var transferSendPairedPcDropdownRecords: List<PairedPcRecord> = emptyList()
@@ -257,6 +258,8 @@ class MainActivity : ComponentActivity() {
         receiveSettings = receiveSettingsStore.load()
         privateConnectionHost = AndroidPrivateConnectionHost(this) {
             privateConnectionOffer = null
+            stopPrivateConnectionPairingOfferIfOwned()
+            stopAutoReceiveForPrivateConnection()
             runOnUiThread {
                 renderDashboardIfVisible()
                 setPrivateConnectionStatus(
@@ -857,7 +860,7 @@ class MainActivity : ComponentActivity() {
         } else {
             val activeOffer = requireNotNull(offer)
             card.addView(
-                bodyText("On the other device, choose Connect private connection, then scan or enter the details below.").apply {
+                bodyText("On the other device, choose Connect private connection, then scan or enter the details below. The security / pairing code also starts pairing so this device can be saved for later transfers.").apply {
                     setPadding(0, dp(10), 0, dp(14))
                 },
             )
@@ -868,7 +871,7 @@ class MainActivity : ComponentActivity() {
             addPrivateConnectionQr(card, PrivateConnectionOfferCodec.encodeWifiQrPayload(activeOffer), qrSize)
             card.addView(privateConnectionDetail("Connection name", activeOffer.connectionName))
             card.addView(privateConnectionDetail("Password", activeOffer.password.ifBlank { "No password" }))
-            card.addView(privateConnectionDetail("Security code", PrivateConnectionSecurityCode.format(activeOffer.code)))
+            card.addView(privateConnectionDetail("Security / pairing code", PrivateConnectionSecurityCode.format(activeOffer.code)))
             card.addView(
                 secondaryButton("Stop private connection").apply {
                     setOnClickListener { stopPrivateConnection() }
@@ -1327,6 +1330,7 @@ class MainActivity : ComponentActivity() {
         AndroidReceiveForegroundService.stop(this)
         localPairingServer?.close()
         localPairingServer = null
+        privateConnectionStartedPairingOffer = false
         runOnUiThread { renderDashboardIfVisible() }
 
         Thread {
@@ -2115,7 +2119,9 @@ class MainActivity : ComponentActivity() {
             message = "Preparing a local connection for paired devices.",
             tone = StatusTone.Progress,
         )
-        privateConnectionHost.start { result ->
+        privateConnectionHost.start(
+            securityCodeProvider = { startPrivateConnectionPairingOffer().offer.shortCode.orEmpty() },
+        ) { result ->
             runOnUiThread {
                 result.onSuccess { offer ->
                     privateConnectionOffer = offer
@@ -2123,11 +2129,12 @@ class MainActivity : ComponentActivity() {
                     renderDashboardIfVisible()
                     setPrivateConnectionStatus(
                         title = "Private connection ready",
-                        message = "Receiving is on while the other device connects.",
+                        message = "Receiving and pairing are ready while the other device connects.",
                         tone = StatusTone.Success,
                     )
                 }.onFailure { exception ->
                     privateConnectionOffer = null
+                    stopPrivateConnectionPairingOfferIfOwned()
                     renderDashboardIfVisible()
                     setPrivateConnectionStatus(
                         title = "Could not create private connection",
@@ -2142,6 +2149,7 @@ class MainActivity : ComponentActivity() {
     private fun stopPrivateConnection() {
         privateConnectionHost.stop()
         privateConnectionOffer = null
+        stopPrivateConnectionPairingOfferIfOwned()
         stopAutoReceiveForPrivateConnection()
         renderDashboardIfVisible()
         setPrivateConnectionStatus(
@@ -2149,6 +2157,41 @@ class MainActivity : ComponentActivity() {
             message = "Create or join a private connection again when paired devices are not on the same Wi-Fi.",
             tone = StatusTone.Neutral,
         )
+    }
+
+    private fun startPrivateConnectionPairingOffer(): AndroidLocalPairingServer {
+        AndroidReceiveForegroundService.stop(this)
+        localPairingServer?.close()
+        localPairingServer = null
+        privateConnectionStartedPairingOffer = false
+
+        val server = AndroidLocalPairingServer.start(
+            context = this,
+            deviceName = androidDeviceName(),
+            devicePublicKey = identityStore.devicePublicKey(),
+            lifetimeSeconds = AndroidPairingOfferLifetimeSeconds,
+            progressChanged = ::handleHostedReceiveProgress,
+            onPendingRequestChanged = {
+                runOnUiThread {
+                    if (selectedSection == MainNavigationSection.Dashboard) {
+                        navigateTo(MainNavigationSection.Dashboard)
+                    }
+                }
+            },
+        )
+        localPairingServer = server
+        privateConnectionStartedPairingOffer = true
+        return server
+    }
+
+    private fun stopPrivateConnectionPairingOfferIfOwned() {
+        if (!privateConnectionStartedPairingOffer) {
+            return
+        }
+
+        localPairingServer?.close()
+        localPairingServer = null
+        privateConnectionStartedPairingOffer = false
     }
 
     private fun startPrivateConnectionJoinFromCode(rawCode: String) {
@@ -2182,7 +2225,7 @@ class MainActivity : ComponentActivity() {
             setPadding(dp(20), dp(8), dp(20), 0)
             addPrivateConnectionDialogField("Connection name", connectionNameInput)
             addPrivateConnectionDialogField("Password", passwordInput)
-            addPrivateConnectionDialogField("Security code", securityCodeInput.root)
+            addPrivateConnectionDialogField("Security / pairing code", securityCodeInput.root)
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -2207,8 +2250,8 @@ class MainActivity : ComponentActivity() {
                     }
                     !PrivateConnectionSecurityCode.isValid(securityCode) -> {
                         setPrivateConnectionStatus(
-                            title = "Security code needed",
-                            message = "Enter the 9-character security code shown on the other device.",
+                            title = "Security / pairing code needed",
+                            message = "Enter the 9-character security / pairing code shown on the other device.",
                             tone = StatusTone.Error,
                         )
                     }

@@ -131,6 +131,8 @@ public partial class MainWindow : Window
                 await EnsureLocalReceiverAsync("Always-on receiver is active.").ConfigureAwait(true);
             }
 
+            await RefreshPrivateConnectionNetworksAsync(showStatusOnFailure: false).ConfigureAwait(true);
+
             if (_startHiddenToTrayOnLoaded)
             {
                 HideToTray(showHint: false);
@@ -145,9 +147,10 @@ public partial class MainWindow : Window
         ApplyLaunchRequest(launchRequest);
     }
 
-    private void DashboardNavButton_Click(object sender, RoutedEventArgs e)
+    private async void DashboardNavButton_Click(object sender, RoutedEventArgs e)
     {
         NavigateTo(NavigationSection.Dashboard);
+        await RefreshPrivateConnectionNetworksAsync(showStatusOnFailure: false).ConfigureAwait(true);
     }
 
     private void DevicesNavButton_Click(object sender, RoutedEventArgs e)
@@ -477,6 +480,11 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private async void RefreshPrivateConnectionNetworksButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshPrivateConnectionNetworksAsync(showStatusOnFailure: true).ConfigureAwait(true);
+    }
+
     private void PairAnotherDeviceCodeTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         UpdateSegmentedCodeBoxes(PairAnotherDeviceCodeBoxes, PairingShortCode.Normalize(PairAnotherDeviceCodeTextBox.Text));
@@ -547,47 +555,102 @@ public partial class MainWindow : Window
 
     private async void ConnectPrivateConnectionButton_Click(object sender, RoutedEventArgs e)
     {
-        string connectionName = PrivateConnectionNameTextBox.Text.Trim();
-        string password = PrivateConnectionPasswordTextBox.Text.Trim();
-        string code = NormalizePrivateConnectionSecurityCode(PrivateConnectionCodeTextBox.Text);
-        if (string.IsNullOrWhiteSpace(connectionName))
+        if (PrivateConnectionNetworkComboBox.SelectedItem is not VisibleWifiNetwork network)
         {
-            StatusTextBlock.Text = "Enter the connection name shown on the other device.";
+            StatusTextBlock.Text = "Select the private connection shown in Windows Wi-Fi, then enter its password and pairing code.";
             return;
         }
 
+        string connectionName = network.Ssid.Trim();
+        string password = PrivateConnectionPasswordTextBox.Password.Trim();
+        string code = NormalizePrivateConnectionSecurityCode(PrivateConnectionCodeTextBox.Text);
         if (!IsNineCharacterPrivateConnectionSecurityCode(code))
         {
-            StatusTextBlock.Text = "Enter the 9-character security code shown on the other device.";
+            StatusTextBlock.Text = "Enter the 9-character security / pairing code shown on the other device.";
             return;
         }
 
         PrivateConnectionCodeTextBox.Text = FormatPrivateConnectionSecurityCode(code);
         ConnectPrivateConnectionButton.IsEnabled = false;
-        StatusTextBlock.Text = "Connecting this PC...";
+        StatusTextBlock.Text = "Connecting to device...";
         try
         {
             await Task.Run(() => _wifiConnector.Connect(connectionName, password)).ConfigureAwait(true);
+            PairedDeviceRecord? pairedDevice = null;
+            string? pairingFailureMessage = null;
+            try
+            {
+                StatusTextBlock.Text = $"Private network connected for {FormatPrivateConnectionSecurityCode(code)}. Pairing with the other device...";
+                pairedDevice = await PairWithDeviceCodeAsync(code).ConfigureAwait(true);
+            }
+            catch (Exception exception)
+            {
+                NearShareLog.Warning("Private connection started, but automatic pairing did not complete.", exception);
+                pairingFailureMessage = exception.Message;
+                StatusTextBlock.Text = $"Private network connected for {FormatPrivateConnectionSecurityCode(code)}, but pairing did not complete: {pairingFailureMessage}";
+            }
+
             AppLaunchRequest? retryRequest = _pendingPrivateConnectionRetryRequest;
             _pendingPrivateConnectionRetryRequest = null;
             if (retryRequest is not null)
             {
-                StatusTextBlock.Text = $"Connection started for {FormatPrivateConnectionSecurityCode(code)}. Retrying transfer...";
+                StatusTextBlock.Text = pairedDevice is null
+                    ? $"Private network connected for {FormatPrivateConnectionSecurityCode(code)}, but pairing did not complete. Retrying transfer to the previously paired device..."
+                    : $"Connected and paired with {pairedDevice.DeviceName}. Retrying transfer...";
                 await Task.Delay(PrivateConnectionRetryDelay).ConfigureAwait(true);
                 await BeginPcToAndroidSendAsync(retryRequest).ConfigureAwait(true);
             }
+            else if (pairedDevice is not null)
+            {
+                StatusTextBlock.Text = $"Connected and paired with {pairedDevice.DeviceName}. You can send files to this device later without creating a new private connection first.";
+            }
             else
             {
-                StatusTextBlock.Text = $"Connection started for {FormatPrivateConnectionSecurityCode(code)}. Send again when ready.";
+                StatusTextBlock.Text = $"Private network connected for {FormatPrivateConnectionSecurityCode(code)}, but the device was not added to paired devices. Pairing failed: {pairingFailureMessage ?? "No pairing response was received."}";
             }
         }
         catch (Exception exception)
         {
-            StatusTextBlock.Text = $"Could not connect this PC: {exception.Message}";
+            StatusTextBlock.Text = $"Could not connect to device: {exception.Message}";
         }
         finally
         {
             ConnectPrivateConnectionButton.IsEnabled = true;
+        }
+    }
+
+    private async Task RefreshPrivateConnectionNetworksAsync(bool showStatusOnFailure)
+    {
+        string? selectedSsid = (PrivateConnectionNetworkComboBox.SelectedItem as VisibleWifiNetwork)?.Ssid;
+        RefreshPrivateConnectionNetworksButton.IsEnabled = false;
+        try
+        {
+            IReadOnlyList<VisibleWifiNetwork> networks = await Task.Run(_wifiConnector.ListVisibleNetworks).ConfigureAwait(true);
+            PrivateConnectionNetworkComboBox.ItemsSource = networks;
+            PrivateConnectionNetworkComboBox.IsEnabled = networks.Count > 0;
+            PrivateConnectionNetworkComboBox.SelectedItem = networks.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Ssid, selectedSsid, StringComparison.Ordinal))
+                ?? networks.FirstOrDefault();
+
+            if (showStatusOnFailure)
+            {
+                StatusTextBlock.Text = networks.Count == 0
+                    ? "No Wi-Fi networks are visible yet. Keep the other device's private connection open, then refresh."
+                    : $"Found {networks.Count} visible Wi-Fi network{(networks.Count == 1 ? string.Empty : "s")}. Select the private connection, then enter the password and pairing code.";
+            }
+        }
+        catch (Exception exception)
+        {
+            PrivateConnectionNetworkComboBox.ItemsSource = Array.Empty<VisibleWifiNetwork>();
+            PrivateConnectionNetworkComboBox.IsEnabled = false;
+            if (showStatusOnFailure)
+            {
+                StatusTextBlock.Text = $"Could not list Wi-Fi networks: {exception.Message}";
+            }
+        }
+        finally
+        {
+            RefreshPrivateConnectionNetworksButton.IsEnabled = true;
         }
     }
 
@@ -1166,60 +1229,7 @@ public partial class MainWindow : Window
 
         try
         {
-            PairingPayload payload = await ResolvePairingPayloadAsync(rawPairingCode).ConfigureAwait(true);
-            await EnsureLocalReceiverAsync("Receiver is active for pairing.").ConfigureAwait(true);
-            if (_pairingServer is null)
-            {
-                StatusTextBlock.Text = "Could not start this PC's receiver for pairing.";
-                return;
-            }
-
-            if (string.Equals(payload.TlsCertificateSha256, _pairingServer.CertificateFingerprint, StringComparison.OrdinalIgnoreCase))
-            {
-                StatusTextBlock.Text = "This is this PC's own pairing code. Use the code from the other device.";
-                return;
-            }
-
-            WindowsPairingClient client = new();
-            StatusTextBlock.Text = $"Requesting pairing with {payload.PcName}...";
-            PairingRequestReceipt receipt = await client.SubmitPairingRequestAsync(
-                    payload,
-                    deviceName: Environment.MachineName,
-                    devicePublicKey: _pairingServer.CertificateFingerprint,
-                    receiveEndpoints: _pairingServer.Offer.Payload.Endpoints,
-                    receiveTlsCertificateSha256: _pairingServer.CertificateFingerprint)
-                .ConfigureAwait(true);
-
-            StatusTextBlock.Text = receipt.Message;
-            PairingRequestResultResponse result = await PollOutgoingPairingResultAsync(client, payload, receipt.RequestId).ConfigureAwait(true);
-            if (string.Equals(result.Status, "rejected", StringComparison.Ordinal))
-            {
-                StatusTextBlock.Text = result.Message ?? "Pairing was rejected on the other device.";
-                return;
-            }
-
-            if (!string.Equals(result.Status, "approved", StringComparison.Ordinal)
-                || result.DeviceId is null
-                || string.IsNullOrWhiteSpace(result.SharedSecret))
-            {
-                StatusTextBlock.Text = "Pairing result was incomplete. Try pairing again.";
-                return;
-            }
-
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            PairedDeviceRecord pairedDevice = new()
-            {
-                DeviceId = result.DeviceId.Value,
-                DeviceName = payload.PcName,
-                DevicePublicKey = $"nearshare-receiver:{payload.TlsCertificateSha256}",
-                SharedSecret = result.SharedSecret,
-                PairedAt = now,
-                LastSeenAt = now,
-                ReceiveEndpoints = payload.Endpoints,
-                ReceiveTlsCertificateSha256 = payload.TlsCertificateSha256
-            };
-            _pairedDeviceStore.AddOrUpdate(pairedDevice);
-            RefreshPairedDevices();
+            PairedDeviceRecord pairedDevice = await PairWithDeviceCodeAsync(rawPairingCode).ConfigureAwait(true);
             PairAnotherDeviceCodeTextBox.Text = string.Empty;
             StatusTextBlock.Text = $"{pairedDevice.DeviceName} paired. You can send files to this device.";
         }
@@ -1227,6 +1237,61 @@ public partial class MainWindow : Window
         {
             StatusTextBlock.Text = $"Could not pair this PC: {exception.Message}";
         }
+    }
+
+    private async Task<PairedDeviceRecord> PairWithDeviceCodeAsync(string rawPairingCode)
+    {
+        PairingPayload payload = await ResolvePairingPayloadAsync(rawPairingCode).ConfigureAwait(true);
+        await EnsureLocalReceiverAsync("Receiver is active for pairing.").ConfigureAwait(true);
+        if (_pairingServer is null)
+        {
+            throw new InvalidOperationException("Could not start this PC's receiver for pairing.");
+        }
+
+        if (string.Equals(payload.TlsCertificateSha256, _pairingServer.CertificateFingerprint, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("This is this PC's own pairing code. Use the code from the other device.");
+        }
+
+        WindowsPairingClient client = new();
+        StatusTextBlock.Text = $"Requesting pairing with {payload.PcName}...";
+        PairingRequestReceipt receipt = await client.SubmitPairingRequestAsync(
+                payload,
+                deviceName: Environment.MachineName,
+                devicePublicKey: _pairingServer.CertificateFingerprint,
+                receiveEndpoints: _pairingServer.Offer.Payload.Endpoints,
+                receiveTlsCertificateSha256: _pairingServer.CertificateFingerprint)
+            .ConfigureAwait(true);
+
+        StatusTextBlock.Text = receipt.Message;
+        PairingRequestResultResponse result = await PollOutgoingPairingResultAsync(client, payload, receipt.RequestId).ConfigureAwait(true);
+        if (string.Equals(result.Status, "rejected", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(result.Message ?? "Pairing was rejected on the other device.");
+        }
+
+        if (!string.Equals(result.Status, "approved", StringComparison.Ordinal)
+            || result.DeviceId is null
+            || string.IsNullOrWhiteSpace(result.SharedSecret))
+        {
+            throw new InvalidOperationException("Pairing result was incomplete. Try pairing again.");
+        }
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        PairedDeviceRecord pairedDevice = new()
+        {
+            DeviceId = result.DeviceId.Value,
+            DeviceName = payload.PcName,
+            DevicePublicKey = $"nearshare-receiver:{payload.TlsCertificateSha256}",
+            SharedSecret = result.SharedSecret,
+            PairedAt = now,
+            LastSeenAt = now,
+            ReceiveEndpoints = payload.Endpoints,
+            ReceiveTlsCertificateSha256 = payload.TlsCertificateSha256
+        };
+        _pairedDeviceStore.AddOrUpdate(pairedDevice);
+        RefreshPairedDevices();
+        return pairedDevice;
     }
 
     private static async Task<PairingRequestResultResponse> PollOutgoingPairingResultAsync(
@@ -1638,7 +1703,7 @@ public partial class MainWindow : Window
             if (CanRetryAfterPrivateConnection(exception))
             {
                 _pendingPrivateConnectionRetryRequest = launchRequest;
-                message += " Connect this PC below; NearShare will retry this transfer after the private connection starts.";
+                message += " Connect to device below; NearShare will retry this transfer after the private connection starts.";
             }
             NearShareLog.Error($"PC-to-Android send failed. {DescribeLaunchRequest(launchRequest)}", exception);
             TransferProgressStatusTextBlock.Text = message;

@@ -11,12 +11,13 @@ public sealed class PairingOfferDiscoveryClient
 {
     private const string RequestType = "nearshare.pairing.discovery.request.v1";
     private const string ResponseType = "nearshare.pairing.discovery.response.v1";
+    private static readonly TimeSpan BroadcastInterval = TimeSpan.FromMilliseconds(750);
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly TimeSpan _timeout;
 
     public PairingOfferDiscoveryClient(TimeSpan? timeout = null)
     {
-        _timeout = timeout ?? TimeSpan.FromSeconds(4);
+        _timeout = timeout ?? TimeSpan.FromSeconds(15);
     }
 
     public async Task<PairingPayload> ResolveAsync(string shortCode, CancellationToken cancellationToken = default)
@@ -41,6 +42,35 @@ public sealed class PairingOfferDiscoveryClient
             },
             SerializerOptions);
 
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(_timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await BroadcastRequestAsync(udpClient, requestBytes).ConfigureAwait(false);
+
+            TimeSpan remaining = deadline - DateTimeOffset.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            PairingPayload? payload = await TryReceivePayloadAsync(
+                    udpClient,
+                    normalized,
+                    remaining < BroadcastInterval ? remaining : BroadcastInterval,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (payload is not null)
+            {
+                return payload;
+            }
+        }
+
+        throw new TimeoutException("Could not find that pairing code. Join the same Wi-Fi, or create and join a private connection first.");
+    }
+
+    private static async Task BroadcastRequestAsync(UdpClient udpClient, byte[] requestBytes)
+    {
         foreach (IPEndPoint endpoint in UdpBroadcastEndpoints.Resolve(LocalDiscoveryResponderOptions.DefaultDiscoveryPort))
         {
             try
@@ -52,9 +82,16 @@ public sealed class PairingOfferDiscoveryClient
                 // Some adapters reject directed broadcasts; keep trying the remaining local interfaces.
             }
         }
+    }
 
+    private static async Task<PairingPayload?> TryReceivePayloadAsync(
+        UdpClient udpClient,
+        string normalized,
+        TimeSpan receiveWindow,
+        CancellationToken cancellationToken)
+    {
         using CancellationTokenSource timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutSource.CancelAfter(_timeout);
+        timeoutSource.CancelAfter(receiveWindow);
 
         while (!timeoutSource.IsCancellationRequested)
         {
@@ -63,7 +100,7 @@ public sealed class PairingOfferDiscoveryClient
             {
                 result = await udpClient.ReceiveAsync(timeoutSource.Token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 break;
             }
@@ -80,10 +117,10 @@ public sealed class PairingOfferDiscoveryClient
                 continue;
             }
 
-            return payload;
+            return PreferResponderEndpoint(payload, result.RemoteEndPoint.Address);
         }
 
-        throw new TimeoutException("Could not find that pairing code. Join the same Wi-Fi, or create and join a private connection first.");
+        return null;
     }
 
     private static PairingOfferDiscoveryResponse? TryParseResponse(byte[] responseBytes, string expectedShortCode)
@@ -111,6 +148,27 @@ public sealed class PairingOfferDiscoveryClient
         {
             return null;
         }
+    }
+
+    private static PairingPayload PreferResponderEndpoint(PairingPayload payload, IPAddress responderAddress)
+    {
+        PairingEndpointCandidate? primaryEndpoint = payload.Endpoints.FirstOrDefault();
+        if (primaryEndpoint is null
+            || IPAddress.Any.Equals(responderAddress)
+            || IPAddress.IPv6Any.Equals(responderAddress)
+            || IPAddress.None.Equals(responderAddress))
+        {
+            return payload;
+        }
+
+        string responderHost = responderAddress.ToString();
+        PairingEndpointCandidate responderEndpoint = new(responderHost, primaryEndpoint.Port);
+        List<PairingEndpointCandidate> endpoints = [responderEndpoint];
+        endpoints.AddRange(payload.Endpoints.Where(endpoint =>
+            endpoint.Port != responderEndpoint.Port
+            || !string.Equals(endpoint.Host, responderEndpoint.Host, StringComparison.OrdinalIgnoreCase)));
+
+        return payload with { Endpoints = endpoints };
     }
 
     private sealed record PairingOfferDiscoveryRequest

@@ -131,18 +131,19 @@ When Android creates a hotspot and PC joins it:
 
 ## Private Connection Automation
 
-Private connection setup is route setup, not pairing/trust. It must never bypass paired-device identity, pinned receiver certificates, or signed transfer requests.
+Private connection setup creates a local route and can bootstrap the normal pairing flow. It must never bypass paired-device identity, pinned receiver certificates, or signed transfer requests.
 
 NearShare 1.0 supported automation:
 
 - Android can create a Local Only Hotspot from the Transfer tab.
-- Android shows QR plus manual details: connection name, password, and a 9-character alphanumeric security code.
+- Android shows QR plus manual details: connection name, password, and a 9-character alphanumeric security / pairing code.
+- Android uses that 9-character value as the Android-hosted pairing short code while the private connection is active.
 - Android shows both a NearShare QR payload and a standard Wi-Fi QR payload. Phone cameras can use the Wi-Fi QR; NearShare can use the richer app payload when scanner support exists on the joining device.
 - Android can scan a NearShare private-connection QR or enter the details manually to request an app-scoped Wi-Fi join through the Android system prompt.
-- Windows can accept those manual details in-app and ask Windows Wi-Fi to connect.
-- After the route is available, normal resolver discovery and signed reachability checks still decide whether transfer can start.
+- Windows can accept those manual details in-app, ask Windows Wi-Fi to connect, and submit the normal pairing request with the same 9-character code.
+- After the route is available and pairing is approved, normal resolver discovery and signed reachability checks still decide whether transfer can start.
 
-The 9-character security code is a human confirmation/offer code. It is intentionally not the whole credential set because it cannot safely encode the private connection name, password, and routing metadata.
+The 9-character code is a human confirmation and pairing-bootstrap value. It is intentionally not the whole credential set because it cannot safely encode the private connection name, password, and routing metadata, and it is not transfer authorization by itself.
 
 Do not promise silent cross-platform joining. Android and Windows may still show OS-controlled permission or network prompts.
 

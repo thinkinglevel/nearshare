@@ -84,14 +84,16 @@ Private connection is a guided local route fallback:
 1. User keeps both devices in NearShare.
 2. One device creates a private connection and shows QR/manual details.
 3. The other device connects from inside NearShare where the platform allows it.
-4. If a send had already failed because the paired device was unreachable, NearShare retries that saved send after the private connection route starts.
-5. If there is no saved failed send, the user starts the paired-device send normally.
+4. NearShare uses the same 9-character code to submit the normal pairing request when the creating side exposes a pairing offer.
+5. The creating device must approve the pairing request before a paired-device record is stored.
+6. If a send had already failed because the paired device was unreachable, NearShare retries that saved send after the private connection route starts.
+7. If there is no saved failed send, the user starts the paired-device send normally.
 
-NearShare 1.0 supports Android-created private connection plus Windows joining by connection name/password/9-character alphanumeric security code. Android also shows a standard Wi-Fi QR for phone camera joining and a NearShare QR for app-aware joining. Android can join a private connection from a NearShare QR or manual details through the platform Wi-Fi join prompt.
+NearShare 1.0 supports Android-created private connection plus Windows joining by connection name/password/9-character alphanumeric security / pairing code. Android also shows a standard Wi-Fi QR for phone camera joining and a NearShare QR for app-aware joining. Android can join a private connection from a NearShare QR or manual details through the platform Wi-Fi join prompt.
 
 Windows-created hotspot/private connection automation is outside NearShare 1.0 scope. Use an existing LAN, an Android-created private connection/hotspot, or Windows' own OS hotspot UI outside NearShare when Windows must provide the route.
 
-Private connection does not replace pairing. Transfers still require the existing paired-device record and authenticated request checks.
+Private connection does not bypass pairing. It bootstraps pairing where possible, and transfers still require a paired-device record plus authenticated request checks.
 
 ## Transfer Sounds
 

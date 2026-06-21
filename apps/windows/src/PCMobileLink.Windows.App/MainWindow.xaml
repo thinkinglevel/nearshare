@@ -285,7 +285,7 @@
                             <TextBlock Text="Private connection"
                                        FontSize="22"
                                        FontWeight="SemiBold" />
-                            <TextBlock Text="Use the details shown on the other device. Failed sends retry after the connection starts."
+                            <TextBlock Text="Use the details shown on the other device. The 9-character code also pairs supported NearShare devices for later transfers."
                                        Style="{StaticResource BodyText}"
                                        Margin="0,8,0,18" />
 
@@ -297,15 +297,29 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Connection name"
+                                    <TextBlock Text="Connection"
                                                FontSize="12"
                                                FontWeight="SemiBold"
                                                Foreground="{StaticResource SecondaryTextBrush}" />
-                                    <TextBox x:Name="PrivateConnectionNameTextBox"
-                                             Height="42"
-                                             Margin="0,6,0,0"
-                                             MinWidth="240"
-                                             Style="{StaticResource ThemedTextBox}" />
+                                    <Grid Margin="0,6,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="PrivateConnectionNetworkComboBox"
+                                                  Grid.Column="0"
+                                                  MinWidth="240"
+                                                  TabIndex="0"
+                                                  DisplayMemberPath="DisplayName"
+                                                  Style="{StaticResource ThemedComboBox}" />
+                                        <Button x:Name="RefreshPrivateConnectionNetworksButton"
+                                                Grid.Column="2"
+                                                Content="Refresh"
+                                                Style="{StaticResource SecondaryButton}"
+                                                VerticalAlignment="Stretch"
+                                                Click="RefreshPrivateConnectionNetworksButton_Click" />
+                                    </Grid>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2">
@@ -313,15 +327,28 @@
                                                FontSize="12"
                                                FontWeight="SemiBold"
                                                Foreground="{StaticResource SecondaryTextBrush}" />
-                                    <TextBox x:Name="PrivateConnectionPasswordTextBox"
-                                             Height="42"
-                                             Margin="0,6,0,0"
-                                             MinWidth="240"
-                                             Style="{StaticResource ThemedTextBox}" />
+                                    <Border Background="#F8FAFC"
+                                            BorderBrush="{StaticResource BorderBrushSoft}"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Height="46"
+                                            Margin="0,6,0,0"
+                                            MinWidth="240"
+                                            Padding="12,0">
+                                        <PasswordBox x:Name="PrivateConnectionPasswordTextBox"
+                                                     TabIndex="1"
+                                                     Padding="0"
+                                                     FontFamily="Segoe UI Variable Text, Segoe UI"
+                                                     FontSize="14"
+                                                     Background="Transparent"
+                                                     Foreground="{StaticResource PrimaryTextBrush}"
+                                                     BorderThickness="0"
+                                                     VerticalContentAlignment="Center" />
+                                    </Border>
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Security code"
+                            <TextBlock Text="Security / pairing code"
                                        FontSize="12"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource SecondaryTextBrush}"
@@ -379,7 +406,7 @@
 
                                 <Button x:Name="ConnectPrivateConnectionButton"
                                         Grid.Column="2"
-                                        Content="Connect this PC"
+                                        Content="Connect to device"
                                         Style="{StaticResource SecondaryButton}"
                                         HorizontalAlignment="Left"
                                         VerticalAlignment="Center"
@@ -708,7 +735,7 @@
                                                  GotKeyboardFocus="SegmentedCodeTextBox_GotKeyboardFocus"
                                                  LostKeyboardFocus="SegmentedCodeTextBox_LostKeyboardFocus" />
                                     </Grid>
-                                    <Button Content="Connect this PC"
+                                    <Button Content="Connect to device"
                                             Style="{StaticResource SecondaryButton}"
                                             HorizontalAlignment="Left"
                                             Margin="0,12,0,0"
@@ -959,7 +986,7 @@
                                         Margin="0,10,0,0"
                                         Click="TransferSoundsButton_Click" />
                                 <TextBlock x:Name="UpdateStatusTextBlock"
-                                           Text="Installed version 1.0. Checks use GitHub Releases."
+                                           Text="Installed version 1.1.0. Checks use GitHub Releases."
                                            Style="{StaticResource BodyText}"
                                            Margin="0,18,0,10" />
                                 <Button x:Name="CheckForUpdatesButton"

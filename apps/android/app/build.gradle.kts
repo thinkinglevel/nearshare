@@ -19,8 +19,8 @@ android {
         applicationId = "com.pcmobilelink.nearshare"
         minSdk = 26
         targetSdk = 36
-        versionCode = 100
-        versionName = "1.0"
+        versionCode = 110
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -72,9 +72,11 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.6.1")
     implementation("androidx.camera:camera-view:1.6.1")
     implementation("androidx.documentfile:documentfile:1.1.0")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("com.github.bumptech.glide:glide:5.0.7")
     implementation("com.google.zxing:core:3.5.4")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")

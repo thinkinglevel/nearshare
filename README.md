@@ -12,7 +12,7 @@ It is not a cloud sync service and does not require an internet relay.
 
 ## Status
 
-NearShare 1.0 is the current stable release line.
+NearShare 1.1.0 is the current stable release line.
 
 Normal users should download NearShare from the project's GitHub Releases page, not from the source tree.
 
@@ -44,7 +44,8 @@ Private connection fallback:
 
 1. Create a private connection from NearShare when the normal LAN path fails.
 2. Join it from the other device using QR or manual details where the platform allows it.
-3. Retry the same paired-device transfer after the route is available.
+3. Approve the normal pairing request when prompted, so the device is saved for later transfers.
+4. Retry the same paired-device transfer after the route is available.
 
 ## Downloads
 
