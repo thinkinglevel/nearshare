@@ -12,6 +12,7 @@ import android.os.IBinder
 import android.util.Log
 import com.pcmobilelink.nearshare.MainActivity
 import com.pcmobilelink.nearshare.R
+import com.pcmobilelink.nearshare.diagnostics.NearShareDiagnostics
 import com.pcmobilelink.nearshare.sound.TransferSoundPlayer
 import com.pcmobilelink.nearshare.sound.TransferSoundResult
 import com.pcmobilelink.nearshare.storage.PairedPcStore
@@ -94,6 +95,7 @@ class AndroidReceiveForegroundService : Service() {
             val server = AndroidReceiveHttpServer(
                 certificate = certificate,
                 sessionManager = sessionManager,
+                diagnostics = { message -> NearShareDiagnostics.info(this, message) },
             )
             val endpoint = server.start()
             receiveServer = server

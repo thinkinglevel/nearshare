@@ -74,13 +74,14 @@ The Explorer menu is opt-in and per Windows user. It targets selected files, not
 
 ## Private Connection Fallback
 
-Private connection is a local route fallback, not a trust model.
+Private connection is a local route fallback that can bootstrap normal pairing. It is not a shortcut around paired-device authentication.
 
 1. Create a private connection from NearShare when the paired device is unreachable.
 2. Join it from the other device using QR or manual details where supported.
-3. Retry the same paired-device send after the route starts.
+3. Approve the pairing request on the creating device when prompted.
+4. Retry the same paired-device send after the route starts.
 
-In NearShare 1.0, private connections are created from Android. Android shows both a NearShare QR and a standard Wi-Fi QR, plus manual network details and a 9-character security code. Windows can join using the manual details. Android can join from a NearShare QR or manual details through the Android system Wi-Fi prompt.
+In NearShare 1.0, private connections are created from Android. Android shows both a NearShare QR and a standard Wi-Fi QR, plus manual network details and a 9-character security / pairing code. Windows can join using the manual details and then submit the normal pairing request with that same code. Android can join from a NearShare QR or manual details through the Android system Wi-Fi prompt.
 
 Windows-hosted private connection creation is outside the NearShare 1.0 user workflow. Use the same Wi-Fi, an Android-created private connection/hotspot, or Windows' own hotspot UI outside NearShare when Windows must provide the route.
 

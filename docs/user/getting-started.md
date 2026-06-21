@@ -53,7 +53,7 @@ If always-on receive is disabled on the destination, open NearShare there and en
 
 ## Private Connection Fallback
 
-If paired devices cannot reach each other on the current network, create a private connection in NearShare and join it from the other device using QR or manual details. Private connection only creates a local route; it does not replace pairing or signed transfer authentication.
+If devices cannot reach each other on the current network, create a private connection in NearShare and join it from the other device using QR or manual details. NearShare uses the same 9-character code to pair supported devices after the route starts, and the creating device must still approve the pairing request. Transfers still require signed paired-device authentication.
 
 ## Always-On Receive
 

@@ -12,6 +12,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
@@ -30,7 +31,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -39,17 +39,24 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.pcmobilelink.nearshare.connectivity.AndroidPrivateConnectionHost
 import com.pcmobilelink.nearshare.connectivity.AndroidPrivateConnectionJoiner
 import com.pcmobilelink.nearshare.connectivity.PrivateConnectionOffer
 import com.pcmobilelink.nearshare.connectivity.PrivateConnectionOfferCodec
 import com.pcmobilelink.nearshare.connectivity.PrivateConnectionSecurityCode
 import com.pcmobilelink.nearshare.diagnostics.NearShareDiagnostics
+import com.pcmobilelink.nearshare.pairing.AndroidLocalPairingServer
+import com.pcmobilelink.nearshare.pairing.LocalPairingPendingRequest
 import com.pcmobilelink.nearshare.pairing.PairingErrorMessage
 import com.pcmobilelink.nearshare.pairing.qr.QrCodeBitmap
 import com.pcmobilelink.nearshare.pairing.qr.QrScannerActivity
 import com.pcmobilelink.nearshare.receiver.AndroidReceiveEndpointRegistry
 import com.pcmobilelink.nearshare.receiver.AndroidReceiveForegroundService
+import com.pcmobilelink.nearshare.receiver.ReceiveTransferProgress
+import com.pcmobilelink.nearshare.storage.AndroidDeviceIdentityStore
 import com.pcmobilelink.nearshare.storage.PairedPcRecord
 import com.pcmobilelink.nearshare.storage.PairedPcStore
 import com.pcmobilelink.nearshare.transfer.ActiveTransferManifestStore
@@ -70,12 +77,15 @@ class ShareActivity : ComponentActivity() {
     private lateinit var fileProgressBar: ProgressBar
     private lateinit var cancelButton: Button
     private lateinit var retryButton: Button
-    private lateinit var selectedFilesList: LinearLayout
+    private lateinit var selectedFilesHeader: TextView
+    private lateinit var selectedFilesRecyclerView: RecyclerView
+    private lateinit var selectedFilesAdapter: SelectedFilesAdapter
     private lateinit var deviceSelectorSection: LinearLayout
     private lateinit var bottomTransferPanel: LinearLayout
     private lateinit var deviceSpinner: Spinner
     private lateinit var sendButton: Button
     private lateinit var pairedPcStore: PairedPcStore
+    private lateinit var identityStore: AndroidDeviceIdentityStore
     private lateinit var activeTransferStore: ActiveTransferManifestStore
     private lateinit var privateConnectionHost: AndroidPrivateConnectionHost
     private lateinit var privateConnectionJoiner: AndroidPrivateConnectionJoiner
@@ -95,6 +105,9 @@ class ShareActivity : ComponentActivity() {
     private var pendingPrivateConnectionJoinOffer: PrivateConnectionOffer? = null
     private var pendingReceiveNotificationPermissionAction: (() -> Unit)? = null
     private var privateConnectionAutoReceiveStarted = false
+    private var privateConnectionPairingServer: AndroidLocalPairingServer? = null
+    private var activePrivateConnectionPairingRequestId: String? = null
+    private var selectedFileMetadataGeneration = 0
 
     private val qrScannerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -140,9 +153,12 @@ class ShareActivity : ComponentActivity() {
         configureEdgeToEdge()
 
         pairedPcStore = PairedPcStore(this)
+        identityStore = AndroidDeviceIdentityStore(this)
         activeTransferStore = ActiveTransferManifestStore(File(filesDir, "active-transfers.json"))
         privateConnectionHost = AndroidPrivateConnectionHost(this) {
             privateConnectionOffer = null
+            stopPrivateConnectionPairingOffer()
+            stopAutoReceiveForPrivateConnection()
             runOnUiThread {
                 refreshDeviceDropdownKeepingSelection()
                 setContextStatus("Private connection stopped.")
@@ -178,6 +194,8 @@ class ShareActivity : ComponentActivity() {
         if (::privateConnectionJoiner.isInitialized) {
             privateConnectionJoiner.disconnect()
         }
+        privateConnectionPairingServer?.close()
+        privateConnectionPairingServer = null
         super.onDestroy()
     }
 
@@ -227,10 +245,6 @@ class ShareActivity : ComponentActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(COLOR_BACKGROUND)
         }
-        val scrollRoot = ScrollView(this).apply {
-            setBackgroundColor(COLOR_BACKGROUND)
-            clipToPadding = false
-        }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(
@@ -266,12 +280,27 @@ class ShareActivity : ComponentActivity() {
             },
         )
 
-        selectedFilesList = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        selectedFilesHeader = TextView(this).apply {
+            text = "Selected files"
+            textSize = 13f
+            typeface = AppTypeface.bold
+            setTextColor(COLOR_SECONDARY_TEXT)
+            setPadding(0, 0, 0, dp(8))
+            visibility = View.GONE
+        }
+        content.addView(selectedFilesHeader)
+
+        selectedFilesAdapter = SelectedFilesAdapter()
+        selectedFilesRecyclerView = RecyclerView(this).apply {
+            layoutManager = LinearLayoutManager(this@ShareActivity)
+            adapter = selectedFilesAdapter
+            clipToPadding = false
+            setHasFixedSize(false)
+            visibility = View.GONE
         }
         content.addView(
-            selectedFilesList,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            selectedFilesRecyclerView,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
                 bottomMargin = dp(12)
             },
         )
@@ -363,12 +392,8 @@ class ShareActivity : ComponentActivity() {
         )
         setProgressVisible(false)
 
-        scrollRoot.addView(
-            content,
-            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
-        )
         root.addView(
-            scrollRoot,
+            content,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f),
         )
         root.addView(
@@ -637,16 +662,19 @@ class ShareActivity : ComponentActivity() {
 
     private fun startPrivateConnection() {
         setContextStatus("Creating private connection...")
-        privateConnectionHost.start { result ->
+        privateConnectionHost.start(
+            securityCodeProvider = { startPrivateConnectionPairingOffer().offer.shortCode.orEmpty() },
+        ) { result ->
             runOnUiThread {
                 result.onSuccess { offer ->
                     privateConnectionOffer = offer
                     startReceiveForPrivateConnection("created")
                     refreshDeviceDropdownKeepingSelection()
                     showPrivateConnectionOfferDialog(offer)
-                    setContextStatus("Private connection is ready. Select the paired device and send when it is connected.")
+                    setContextStatus("Private connection and pairing are ready. Approve the other device when it asks to pair.")
                 }.onFailure { exception ->
                     privateConnectionOffer = null
+                    stopPrivateConnectionPairingOffer()
                     setContextStatus("Could not create private connection: ${exception.message ?: "Try again."}")
                 }
             }
@@ -659,7 +687,7 @@ class ShareActivity : ComponentActivity() {
             setPadding(dp(20), dp(8), dp(20), 0)
             addView(
                 TextView(this@ShareActivity).apply {
-                    text = "Scan this inside NearShare on the other device, or enter the details below."
+                    text = "Scan this inside NearShare on the other device, or enter the details below. The 9-character code also starts pairing so the device can be saved for later transfers."
                     textSize = 14f
                     setTextColor(COLOR_SECONDARY_TEXT)
                     typeface = AppTypeface.regular
@@ -681,7 +709,7 @@ class ShareActivity : ComponentActivity() {
             )
             addView(privateConnectionDetail("Connection name", offer.connectionName))
             addView(privateConnectionDetail("Password", offer.password.ifBlank { "No password" }))
-            addView(privateConnectionDetail("Security code", PrivateConnectionSecurityCode.format(offer.code)))
+            addView(privateConnectionDetail("Security / pairing code", PrivateConnectionSecurityCode.format(offer.code)))
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -706,9 +734,75 @@ class ShareActivity : ComponentActivity() {
     private fun stopPrivateConnection() {
         privateConnectionHost.stop()
         privateConnectionOffer = null
+        stopPrivateConnectionPairingOffer()
         stopAutoReceiveForPrivateConnection()
         refreshDeviceDropdownKeepingSelection()
         setContextStatus("Private connection stopped.")
+    }
+
+    private fun startPrivateConnectionPairingOffer(): AndroidLocalPairingServer {
+        privateConnectionPairingServer?.close()
+        activePrivateConnectionPairingRequestId = null
+
+        val server = AndroidLocalPairingServer.start(
+            context = this,
+            deviceName = androidDeviceName(),
+            devicePublicKey = identityStore.devicePublicKey(),
+            lifetimeSeconds = AndroidPairingOfferLifetimeSeconds,
+            progressChanged = ::handlePrivateConnectionHostedReceiveProgress,
+            onPendingRequestChanged = {
+                runOnUiThread { showPrivateConnectionPairingRequestIfNeeded() }
+            },
+        )
+        privateConnectionPairingServer = server
+        return server
+    }
+
+    private fun stopPrivateConnectionPairingOffer() {
+        privateConnectionPairingServer?.close()
+        privateConnectionPairingServer = null
+        activePrivateConnectionPairingRequestId = null
+    }
+
+    private fun showPrivateConnectionPairingRequestIfNeeded() {
+        val request = privateConnectionPairingServer?.currentPendingRequest() ?: return
+        if (activePrivateConnectionPairingRequestId == request.requestId) {
+            return
+        }
+
+        activePrivateConnectionPairingRequestId = request.requestId
+        showPrivateConnectionPairingRequestDialog(request)
+    }
+
+    private fun showPrivateConnectionPairingRequestDialog(request: LocalPairingPendingRequest) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("${request.deviceName} wants to pair")
+            .setMessage("Approve only if this is the device that just joined your private connection. Once approved, it appears in the paired-device list for future transfers.")
+            .setNegativeButton("Reject") { _, _ -> rejectPrivateConnectionPairingRequest(request.requestId) }
+            .setPositiveButton("Approve") { _, _ -> approvePrivateConnectionPairingRequest(request.requestId) }
+            .show()
+        ThemedAlertDialog.apply(dialog)
+    }
+
+    private fun approvePrivateConnectionPairingRequest(requestId: String) {
+        try {
+            val record = privateConnectionPairingServer?.approve(requestId)
+                ?: throw IllegalStateException("Private connection pairing is not active.")
+            PairedPcShareTargets.publish(this, pairedPcStore.loadAll())
+            pairedPcStore.saveLastSelectedSendPcDeviceId(record.pcDeviceId)
+            selectedRecord = record
+            activePrivateConnectionPairingRequestId = null
+            refreshDeviceDropdownKeepingSelection()
+            setContextStatus("${record.pcName} paired. Select it in the dropdown and send when ready.")
+        } catch (exception: Exception) {
+            setContextStatus("Could not approve pairing: ${PairingErrorMessage.from(exception)}")
+        }
+    }
+
+    private fun rejectPrivateConnectionPairingRequest(requestId: String) {
+        val rejected = privateConnectionPairingServer?.reject(requestId) == true
+        activePrivateConnectionPairingRequestId = null
+        setContextStatus(if (rejected) "Pairing rejected." else "No pending private connection pairing request.")
     }
 
     private fun handlePrivateConnectionQrResult(resultCode: Int, data: Intent?) {
@@ -738,7 +832,7 @@ class ShareActivity : ComponentActivity() {
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
         )
         val securityCodeInput = privateConnectionDialogInput(
-            "Security code",
+            "Security / pairing code",
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
         ).apply {
             filters = arrayOf(InputFilter.LengthFilter(PrivateConnectionSecurityCodeLength))
@@ -751,7 +845,7 @@ class ShareActivity : ComponentActivity() {
             addView(connectionNameInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)))
             addView(privateConnectionDialogLabel("Password"))
             addView(passwordInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)))
-            addView(privateConnectionDialogLabel("Security code"))
+            addView(privateConnectionDialogLabel("Security / pairing code"))
             addView(securityCodeInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)))
         }
 
@@ -769,7 +863,7 @@ class ShareActivity : ComponentActivity() {
                 val securityCode = PrivateConnectionSecurityCode.normalize(securityCodeInput.text.toString())
                 when {
                     connectionName.isBlank() -> setContextStatus("Enter the connection name shown on the other device.")
-                    !PrivateConnectionSecurityCode.isValid(securityCode) -> setContextStatus("Enter the 9-character security code shown on the other device.")
+                    !PrivateConnectionSecurityCode.isValid(securityCode) -> setContextStatus("Enter the 9-character security / pairing code shown on the other device.")
                     else -> {
                         val now = System.currentTimeMillis() / 1000
                         dialog.dismiss()
@@ -855,6 +949,13 @@ class ShareActivity : ComponentActivity() {
         }
     }
 
+    private fun handlePrivateConnectionHostedReceiveProgress(progress: ReceiveTransferProgress) {
+        NearShareDiagnostics.info(
+            this,
+            "Share private connection pairing receive status=${progress.status} file=${progress.fileIndex}/${progress.totalFiles}",
+        )
+    }
+
     private fun stopAutoReceiveForPrivateConnection() {
         if (!privateConnectionAutoReceiveStarted) {
             return
@@ -892,120 +993,41 @@ class ShareActivity : ComponentActivity() {
     }
 
     private fun renderSelectedFiles() {
-        selectedFilesList.removeAllViews()
+        selectedFileMetadataGeneration += 1
+        val generation = selectedFileMetadataGeneration
         if (sharedFileUris.isEmpty()) {
-            selectedFilesList.visibility = View.GONE
+            selectedFilesHeader.visibility = View.GONE
+            selectedFilesRecyclerView.visibility = View.GONE
+            selectedFilesAdapter.submit(emptyList())
             return
         }
 
-        selectedFilesList.visibility = View.VISIBLE
-        selectedFilesList.addView(
-            TextView(this).apply {
-                text = "Selected files"
-                textSize = 13f
-                typeface = AppTypeface.bold
-                setTextColor(COLOR_SECONDARY_TEXT)
-                setPadding(0, 0, 0, dp(8))
-            },
-        )
-
-        sharedFileUris.forEachIndexed { index, uri ->
-            selectedFilesList.addView(
-                selectedFileRow(uri),
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                    if (index < sharedFileUris.lastIndex) {
-                        bottomMargin = dp(8)
-                    }
-                },
-            )
-        }
-    }
-
-    private fun selectedFileRow(uri: Uri): View {
-        val mimeType = contentResolver.getType(uri).orEmpty()
-        val displayName = displayName(uri)
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(10), dp(10), dp(10))
-            background = roundedStrokeDrawable(Color.WHITE, COLOR_BORDER, dp(18), dp(1))
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { openSharedFile(uri, mimeType) }
-        }
-
-        val thumbnailFrame = FrameLayout(this).apply {
-            background = roundedDrawable(0xFFEFF6FF.toInt(), dp(14))
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { openSharedFile(uri, mimeType) }
-        }
-        if (mimeType.startsWith("image/")) {
-            thumbnailFrame.addView(
-                ImageView(this).apply {
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    setImageURI(uri)
-                },
-                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-            )
+        selectedFilesHeader.text = if (sharedFileUris.size == 1) {
+            "Selected file"
         } else {
-            thumbnailFrame.addView(
-                TextView(this).apply {
-                    text = fileIcon(mimeType)
-                    textSize = 22f
-                    gravity = Gravity.CENTER
-                    setTextColor(COLOR_PRIMARY)
-                },
-                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-            )
+            "Selected files (${sharedFileUris.size})"
         }
-        row.addView(
-            thumbnailFrame,
-            LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(12) },
-        )
-
-        val textColumn = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        textColumn.addView(
-            TextView(this).apply {
-                text = displayName
-                textSize = 15f
-                typeface = AppTypeface.bold
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setTextColor(COLOR_TEXT)
+        selectedFilesHeader.visibility = View.VISIBLE
+        selectedFilesRecyclerView.visibility = View.VISIBLE
+        selectedFilesAdapter.submit(
+            sharedFileUris.map { uri ->
+                SelectedFilePreview(
+                    uri = uri,
+                    displayName = fallbackDisplayName(uri),
+                    mimeType = "",
+                )
             },
         )
-        textColumn.addView(
-            TextView(this).apply {
-                text = if (mimeType.isBlank()) "Tap to preview" else "$mimeType • Tap to preview"
-                textSize = 12f
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setTextColor(COLOR_SECONDARY_TEXT)
-                setPadding(0, dp(4), 0, 0)
-            },
-        )
-        row.addView(textColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
-        row.addView(
-            TextView(this).apply {
-                text = "×"
-                textSize = 24f
-                gravity = Gravity.CENTER
-                typeface = AppTypeface.bold
-                setTextColor(0xFFDC2626.toInt())
-                contentDescription = "Remove $displayName from queue"
-                background = roundedDrawable(0xFFFEF2F2.toInt(), dp(16))
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { removeSharedFile(uri) }
-            },
-            LinearLayout.LayoutParams(dp(36), dp(36)).apply { leftMargin = dp(10) },
-        )
-
-        return row
+        val snapshot = sharedFileUris.toList()
+        Thread {
+            val resolved = snapshot.map { uri -> selectedFilePreview(uri) }
+            runOnUiThread {
+                if (generation == selectedFileMetadataGeneration) {
+                    selectedFilesAdapter.submit(resolved)
+                }
+            }
+        }.start()
     }
 
     private fun removeSharedFile(uri: Uri) {
@@ -1035,21 +1057,184 @@ class ShareActivity : ComponentActivity() {
         }
     }
 
-    private fun displayName(uri: Uri): String {
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index >= 0) {
-                    val value = cursor.getString(index)
-                    if (!value.isNullOrBlank()) {
-                        return value
+    private fun selectedFilePreview(uri: Uri): SelectedFilePreview {
+        return SelectedFilePreview(
+            uri = uri,
+            displayName = queryDisplayName(uri),
+            mimeType = runCatching { contentResolver.getType(uri).orEmpty() }.getOrDefault(""),
+        )
+    }
+
+    private fun queryDisplayName(uri: Uri): String {
+        return runCatching {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) {
+                        val value = cursor.getString(index)
+                        if (!value.isNullOrBlank()) {
+                            return@runCatching value
+                        }
                     }
                 }
             }
-        }
 
+            fallbackDisplayName(uri)
+        }.getOrDefault(fallbackDisplayName(uri))
+    }
+
+    private fun fallbackDisplayName(uri: Uri): String {
         return uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "Shared file"
     }
+
+    private inner class SelectedFilesAdapter : RecyclerView.Adapter<SelectedFileViewHolder>() {
+        private var items: List<SelectedFilePreview> = emptyList()
+
+        fun submit(updatedItems: List<SelectedFilePreview>) {
+            items = updatedItems
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SelectedFileViewHolder {
+            val row = LinearLayout(parent.context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(12), dp(10), dp(10), dp(10))
+                background = roundedStrokeDrawable(Color.WHITE, COLOR_BORDER, dp(18), dp(1))
+                isClickable = true
+                isFocusable = true
+                layoutParams = RecyclerView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    bottomMargin = dp(8)
+                }
+            }
+
+            val thumbnailFrame = FrameLayout(parent.context).apply {
+                background = roundedDrawable(0xFFEFF6FF.toInt(), dp(14))
+                clipToOutline = true
+            }
+            val thumbnailImage = ImageView(parent.context).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+            }
+            thumbnailFrame.addView(
+                thumbnailImage,
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+            )
+            val thumbnailIcon = TextView(parent.context).apply {
+                textSize = 18f
+                gravity = Gravity.CENTER
+                setTextColor(COLOR_PRIMARY)
+            }
+            thumbnailFrame.addView(
+                thumbnailIcon,
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+            )
+            row.addView(
+                thumbnailFrame,
+                LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(12) },
+            )
+
+            val textColumn = LinearLayout(parent.context).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+            val nameText = TextView(parent.context).apply {
+                textSize = 15f
+                typeface = AppTypeface.bold
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setTextColor(COLOR_TEXT)
+            }
+            val detailText = TextView(parent.context).apply {
+                textSize = 12f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setTextColor(COLOR_SECONDARY_TEXT)
+                setPadding(0, dp(4), 0, 0)
+            }
+            textColumn.addView(nameText)
+            textColumn.addView(detailText)
+            row.addView(textColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+            val removeButton = TextView(parent.context).apply {
+                text = "×"
+                textSize = 24f
+                gravity = Gravity.CENTER
+                typeface = AppTypeface.bold
+                setTextColor(0xFFDC2626.toInt())
+                background = roundedDrawable(0xFFFEF2F2.toInt(), dp(16))
+                isClickable = true
+                isFocusable = true
+            }
+            row.addView(
+                removeButton,
+                LinearLayout.LayoutParams(dp(36), dp(36)).apply { leftMargin = dp(10) },
+            )
+
+            return SelectedFileViewHolder(
+                row = row,
+                thumbnailImage = thumbnailImage,
+                thumbnailIcon = thumbnailIcon,
+                nameText = nameText,
+                detailText = detailText,
+                removeButton = removeButton,
+            )
+        }
+
+        override fun onBindViewHolder(holder: SelectedFileViewHolder, position: Int) {
+            holder.bind(items[position])
+        }
+
+        override fun onViewRecycled(holder: SelectedFileViewHolder) {
+            Glide.with(holder.thumbnailImage).clear(holder.thumbnailImage)
+            super.onViewRecycled(holder)
+        }
+
+        override fun getItemCount(): Int = items.size
+    }
+
+    private inner class SelectedFileViewHolder(
+        private val row: LinearLayout,
+        val thumbnailImage: ImageView,
+        private val thumbnailIcon: TextView,
+        private val nameText: TextView,
+        private val detailText: TextView,
+        private val removeButton: TextView,
+    ) : RecyclerView.ViewHolder(row) {
+        fun bind(item: SelectedFilePreview) {
+            nameText.text = item.displayName
+            detailText.text = if (item.mimeType.isBlank()) "Tap to preview" else "${item.mimeType} • Tap to preview"
+            row.setOnClickListener { openSharedFile(item.uri, item.mimeType) }
+            thumbnailImage.setOnClickListener { openSharedFile(item.uri, item.mimeType) }
+            thumbnailIcon.setOnClickListener { openSharedFile(item.uri, item.mimeType) }
+            removeButton.contentDescription = "Remove ${item.displayName} from queue"
+            removeButton.setOnClickListener { removeSharedFile(item.uri) }
+
+            if (item.mimeType.startsWith("image/")) {
+                thumbnailIcon.visibility = View.GONE
+                thumbnailImage.visibility = View.VISIBLE
+                Glide.with(thumbnailImage)
+                    .load(item.uri)
+                    .centerCrop()
+                    .placeholder(ColorDrawable(0xFFEFF6FF.toInt()))
+                    .error(ColorDrawable(0xFFEFF6FF.toInt()))
+                    .into(thumbnailImage)
+            } else {
+                Glide.with(thumbnailImage).clear(thumbnailImage)
+                thumbnailImage.setImageDrawable(null)
+                thumbnailImage.visibility = View.GONE
+                thumbnailIcon.visibility = View.VISIBLE
+                thumbnailIcon.text = fileIcon(item.mimeType)
+            }
+        }
+    }
+
+    private data class SelectedFilePreview(
+        val uri: Uri,
+        val displayName: String,
+        val mimeType: String,
+    )
 
     private fun fileIcon(mimeType: String): String {
         return when {
@@ -1349,6 +1534,13 @@ class ShareActivity : ComponentActivity() {
         return (value * resources.displayMetrics.density).toInt()
     }
 
+    private fun androidDeviceName(): String {
+        return listOf(Build.MANUFACTURER, Build.MODEL)
+            .filter { it.isNotBlank() }
+            .joinToString(separator = " ")
+            .ifBlank { "Android Phone" }
+    }
+
     companion object {
         const val EXTRA_TARGET_PC_DEVICE_ID = "com.pcmobilelink.nearshare.extra.TARGET_PC_DEVICE_ID"
 
@@ -1360,6 +1552,7 @@ class ShareActivity : ComponentActivity() {
         private const val COLOR_SUBTLE_SURFACE = 0xFFF8FAFC.toInt()
         private const val COLOR_PRIMARY = 0xFF2563EB.toInt()
         private const val SELECT_DEVICE_LABEL = "Select device"
+        private const val AndroidPairingOfferLifetimeSeconds = 5 * 60L
         private const val ManualPrivateConnectionLifetimeSeconds = 10 * 60L
         private const val PrivateConnectionSecurityCodeLength = 9
         private const val POST_NOTIFICATIONS_REQUEST_CODE = 4102

@@ -21,7 +21,10 @@ class AndroidPrivateConnectionHost(
     val isActive: Boolean
         get() = reservation != null
 
-    fun start(callback: (Result<PrivateConnectionOffer>) -> Unit) {
+    fun start(
+        securityCodeProvider: (() -> String)? = null,
+        callback: (Result<PrivateConnectionOffer>) -> Unit,
+    ) {
         if (reservation != null) {
             callback(Result.failure(IllegalStateException("Private connection is already active.")))
             return
@@ -41,17 +44,27 @@ class AndroidPrivateConnectionHost(
                             return
                         }
 
-                        callback(
-                            Result.success(
-                                PrivateConnectionOffer(
-                                    connectionName = details.connectionName,
-                                    password = details.password,
-                                    code = createCode(),
-                                    createdAtUnixTimeSeconds = createdAt,
-                                    expiresAtUnixTimeSeconds = createdAt + OfferLifetimeSeconds,
+                        Thread {
+                            val securityCode = runCatching { securityCodeProvider?.invoke() ?: createCode() }
+                                .getOrElse { exception ->
+                                    activeReservation.close()
+                                    reservation = null
+                                    callback(Result.failure(exception))
+                                    return@Thread
+                                }
+
+                            callback(
+                                Result.success(
+                                    PrivateConnectionOffer(
+                                        connectionName = details.connectionName,
+                                        password = details.password,
+                                        code = securityCode,
+                                        createdAtUnixTimeSeconds = createdAt,
+                                        expiresAtUnixTimeSeconds = createdAt + OfferLifetimeSeconds,
+                                    ),
                                 ),
-                            ),
-                        )
+                            )
+                        }.start()
                     }
 
                     override fun onStopped() {

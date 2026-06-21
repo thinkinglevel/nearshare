@@ -54,7 +54,9 @@ Private connection fallback:
 
 1. One device creates a local private connection and shows QR/manual details.
 2. The other device joins it where the platform allows in-app joining.
-3. The normal paired-device resolver and signed transfer checks still decide whether sending can start.
+3. NearShare uses the same 9-character code to bootstrap the normal pairing request where supported.
+4. The creating device must approve pairing before a paired-device record is stored.
+5. The normal paired-device resolver and signed transfer checks still decide whether sending can start.
 
 ## Android Receive Modes
 

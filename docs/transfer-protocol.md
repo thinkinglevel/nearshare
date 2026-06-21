@@ -291,11 +291,13 @@ Android can publish paired devices as Android Sharesheet direct targets. When th
 
 ### Private Connection Route
 
-Private connection is route setup only. It does not change the authentication contract.
+Private connection is route setup plus pairing bootstrap where the platform flow supports it. It does not weaken the authentication contract.
 
 - Android can create a private connection and show NearShare QR, Wi-Fi QR, and manual details.
+- When Android creates the connection, the 9-character private-connection code is also the Android-hosted pairing short code.
 - Android can join a private connection through QR/manual details via the Android system Wi-Fi prompt.
-- Windows can join using connection name, password, and the 9-character security code shown by the creating device.
+- Windows can join using connection name, password, and the 9-character security / pairing code shown by the creating device, then submit the normal pairing request over that route.
+- The creating device must still approve the pairing request before either side stores a paired-device record.
 - After joining, sender endpoint resolution and signed reachability validation still run before transfer.
 
 ### Post-1.0 Hardening

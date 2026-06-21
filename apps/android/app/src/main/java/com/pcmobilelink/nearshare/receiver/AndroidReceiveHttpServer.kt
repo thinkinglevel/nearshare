@@ -23,6 +23,7 @@ class AndroidReceiveHttpServer(
     private val requestHandler: (ReceiveHttpRequest) -> ReceiveHttpResponse,
     private val listenAddress: InetAddress = InetAddress.getByName("0.0.0.0"),
     private val listenPort: Int = 0,
+    private val diagnostics: (String) -> Unit = {},
 ) : Closeable {
     private val running = AtomicBoolean(false)
     private val executor: ExecutorService = Executors.newCachedThreadPool()
@@ -33,11 +34,13 @@ class AndroidReceiveHttpServer(
         sessionManager: AndroidReceiveSessionManager,
         listenAddress: InetAddress = InetAddress.getByName("0.0.0.0"),
         listenPort: Int = 0,
+        diagnostics: (String) -> Unit = {},
     ) : this(
         certificate = certificate,
         requestHandler = { request -> sessionManager.handle(request) },
         listenAddress = listenAddress,
         listenPort = listenPort,
+        diagnostics = diagnostics,
     )
 
     fun start(): AndroidReceiveEndpointMetadata {
@@ -49,8 +52,9 @@ class AndroidReceiveHttpServer(
         serverSocket = socket
         Log.i(TAG, "Android receive HTTPS server bound to ${listenAddress.hostAddress}:${socket.localPort}")
         executor.execute { acceptLoop(socket) }
+        val advertisedHost = preferredLocalIpv4Address()
         return AndroidReceiveEndpointMetadata(
-            host = preferredLocalIpv4Address(),
+            host = advertisedHost,
             port = socket.localPort,
             tlsCertificateSha256 = certificate.tlsCertificateSha256,
         )
@@ -179,15 +183,100 @@ class AndroidReceiveHttpServer(
 
     private fun preferredLocalIpv4Address(): String {
         return try {
-            NetworkInterface.getNetworkInterfaces().toList()
-                .flatMap { networkInterface -> networkInterface.inetAddresses.toList() }
-                .filterIsInstance<Inet4Address>()
-                .firstOrNull { address -> !address.isLoopbackAddress && !address.isLinkLocalAddress }
-                ?.hostAddress
-                ?: "127.0.0.1"
-        } catch (_: Exception) {
+            val candidates = NetworkInterface.getNetworkInterfaces().toList()
+                .flatMap { networkInterface ->
+                    networkInterface.inetAddresses.toList()
+                        .filterIsInstance<Inet4Address>()
+                        .mapNotNull { address -> scoreAddressCandidate(networkInterface, address) }
+                }
+                .sortedWith(
+                    compareByDescending<AddressCandidate> { it.score }
+                        .thenBy { it.interfaceName }
+                        .thenBy { it.host },
+                )
+
+            val selected = candidates.firstOrNull()
+            val message = if (selected == null) {
+                "Android receive advertised IPv4 selected=127.0.0.1 candidates=<none>"
+            } else {
+                "Android receive advertised IPv4 selected=${selected.host} candidates=" +
+                    candidates.joinToString("; ") { candidate -> candidate.describe() }
+            }
+            Log.i(TAG, message)
+            diagnostics(message)
+            selected?.host ?: "127.0.0.1"
+        } catch (exception: Exception) {
+            val message = "Android receive advertised IPv4 selection failed: ${exception.message ?: exception.javaClass.simpleName}"
+            Log.w(TAG, message, exception)
+            diagnostics(message)
             "127.0.0.1"
         }
+    }
+
+    private fun scoreAddressCandidate(networkInterface: NetworkInterface, address: Inet4Address): AddressCandidate? {
+        if (address.isLoopbackAddress || address.isLinkLocalAddress || address.isAnyLocalAddress) {
+            return null
+        }
+
+        val name = networkInterface.name.orEmpty()
+        val normalizedName = name.lowercase(Locale.US)
+        val reasons = mutableListOf<String>()
+        var score = 0
+
+        if (isPrivateIpv4(address)) {
+            score += 80
+            reasons += "private"
+        } else {
+            score -= 30
+            reasons += "non-private"
+        }
+
+        if (isWifiOrHotspotInterface(normalizedName)) {
+            score += 60
+            reasons += "wifi"
+        }
+
+        if (isCellularInterface(normalizedName)) {
+            score -= 100
+            reasons += "cellular"
+        }
+
+        if (runCatching { networkInterface.isPointToPoint }.getOrDefault(false)) {
+            score -= 20
+            reasons += "point-to-point"
+        }
+
+        return AddressCandidate(
+            interfaceName = name.ifBlank { "<unknown>" },
+            host = address.hostAddress ?: return null,
+            score = score,
+            reasons = reasons,
+        )
+    }
+
+    private fun isPrivateIpv4(address: Inet4Address): Boolean {
+        val octets = address.address.map { value -> value.toInt() and 0xff }
+        val first = octets[0]
+        val second = octets[1]
+        return first == 10 ||
+            (first == 172 && second in 16..31) ||
+            (first == 192 && second == 168)
+    }
+
+    private fun isWifiOrHotspotInterface(name: String): Boolean {
+        return name.startsWith("wlan") ||
+            name.startsWith("swlan") ||
+            name.startsWith("ap") ||
+            name.startsWith("softap") ||
+            name.startsWith("p2p")
+    }
+
+    private fun isCellularInterface(name: String): Boolean {
+        return name.startsWith("rmnet") ||
+            name.startsWith("ccmni") ||
+            name.startsWith("pdp") ||
+            name.startsWith("wwan") ||
+            name.contains("cell")
     }
 
     private fun escapeJson(value: String): String {
@@ -198,6 +287,15 @@ class AndroidReceiveHttpServer(
         private const val MAX_HEADER_BYTES = 64 * 1024
         private const val TAG = "NearShare"
     }
+}
+
+private data class AddressCandidate(
+    val interfaceName: String,
+    val host: String,
+    val score: Int,
+    val reasons: List<String>,
+) {
+    fun describe(): String = "$interfaceName/$host score=$score ${reasons.joinToString("+")}"
 }
 
 data class AndroidReceiveEndpointMetadata(

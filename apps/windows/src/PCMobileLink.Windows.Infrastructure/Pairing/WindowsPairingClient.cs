@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Net;
-using System.Net.Http.Json;
 using System.Net.Security;
+using System.Text;
 using System.Text.Json;
 using PCMobileLink.Windows.Core;
 
@@ -29,25 +29,41 @@ public sealed class WindowsPairingClient
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceName);
         ArgumentException.ThrowIfNullOrWhiteSpace(devicePublicKey);
 
-        using HttpClient httpClient = CreatePinnedClient(payload.TlsCertificateSha256);
-        using HttpResponseMessage response = await httpClient.PostAsJsonAsync(
-                PairingRequestsUrl(payload),
-                new PairingRequestPayload
-                {
-                    OfferId = payload.OfferId,
-                    PairingToken = payload.PairingToken,
-                    DeviceName = deviceName,
-                    DevicePublicKey = devicePublicKey,
-                    ReceiveEndpoints = receiveEndpoints,
-                    ReceiveTlsCertificateSha256 = receiveTlsCertificateSha256
-                },
-                SerializerOptions,
-                cancellationToken)
-            .ConfigureAwait(false);
+        PairingRequestPayload requestPayload = new()
+        {
+            OfferId = payload.OfferId,
+            PairingToken = payload.PairingToken,
+            DeviceName = deviceName,
+            DevicePublicKey = devicePublicKey,
+            ReceiveEndpoints = receiveEndpoints,
+            ReceiveTlsCertificateSha256 = receiveTlsCertificateSha256
+        };
 
-        await EnsureStatusAsync(response, HttpStatusCode.Accepted, cancellationToken).ConfigureAwait(false);
-        return await ReadJsonAsync<PairingRequestReceipt>(response, cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Pairing request did not return a receipt.");
+        Exception? lastEndpointException = null;
+        foreach (PairingEndpointCandidate endpoint in Endpoints(payload))
+        {
+            using HttpClient httpClient = CreatePinnedClient(payload.TlsCertificateSha256);
+            string requestJson = JsonSerializer.Serialize(requestPayload, SerializerOptions);
+            using StringContent requestContent = new(requestJson, Encoding.UTF8, "application/json");
+            try
+            {
+                using HttpResponseMessage response = await httpClient.PostAsync(
+                        PairingRequestsUrl(endpoint),
+                        requestContent,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                await EnsureStatusAsync(response, HttpStatusCode.Accepted, cancellationToken).ConfigureAwait(false);
+                return await ReadJsonAsync<PairingRequestReceipt>(response, cancellationToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("Pairing request did not return a receipt.");
+            }
+            catch (Exception exception) when (IsEndpointReachabilityFailure(exception, cancellationToken))
+            {
+                lastEndpointException = exception;
+            }
+        }
+
+        throw new InvalidOperationException("Could not reach any pairing endpoint from the pairing code.", lastEndpointException);
     }
 
     public async Task<PairingRequestResultResponse> GetPairingResultAsync(
@@ -57,15 +73,28 @@ public sealed class WindowsPairingClient
     {
         ArgumentNullException.ThrowIfNull(payload);
 
-        using HttpClient httpClient = CreatePinnedClient(payload.TlsCertificateSha256);
-        using HttpResponseMessage response = await httpClient.GetAsync(
-                PairingRequestResultUrl(payload, requestId),
-                cancellationToken)
-            .ConfigureAwait(false);
+        Exception? lastEndpointException = null;
+        foreach (PairingEndpointCandidate endpoint in Endpoints(payload))
+        {
+            using HttpClient httpClient = CreatePinnedClient(payload.TlsCertificateSha256);
+            try
+            {
+                using HttpResponseMessage response = await httpClient.GetAsync(
+                        PairingRequestResultUrl(endpoint, requestId),
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
-        await EnsureStatusAsync(response, HttpStatusCode.OK, cancellationToken).ConfigureAwait(false);
-        return await ReadJsonAsync<PairingRequestResultResponse>(response, cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Pairing request did not return a result.");
+                await EnsureStatusAsync(response, HttpStatusCode.OK, cancellationToken).ConfigureAwait(false);
+                return await ReadJsonAsync<PairingRequestResultResponse>(response, cancellationToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("Pairing request did not return a result.");
+            }
+            catch (Exception exception) when (IsEndpointReachabilityFailure(exception, cancellationToken))
+            {
+                lastEndpointException = exception;
+            }
+        }
+
+        throw new InvalidOperationException("Could not reach any pairing endpoint while waiting for approval.", lastEndpointException);
     }
 
     private HttpClient CreatePinnedClient(string expectedTlsCertificateSha256)
@@ -114,22 +143,21 @@ public sealed class WindowsPairingClient
         throw new InvalidOperationException($"Pairing request failed with HTTP {(int)response.StatusCode}: {body}");
     }
 
-    private static string PairingRequestsUrl(PairingPayload payload)
+    private static string PairingRequestsUrl(PairingEndpointCandidate endpoint)
     {
-        PairingEndpointCandidate endpoint = FirstEndpoint(payload);
         return $"https://{FormatHost(endpoint.Host)}:{endpoint.Port.ToString(CultureInfo.InvariantCulture)}/nearshare/pairing/requests";
     }
 
-    private static string PairingRequestResultUrl(PairingPayload payload, Guid requestId)
+    private static string PairingRequestResultUrl(PairingEndpointCandidate endpoint, Guid requestId)
     {
-        PairingEndpointCandidate endpoint = FirstEndpoint(payload);
         return $"https://{FormatHost(endpoint.Host)}:{endpoint.Port.ToString(CultureInfo.InvariantCulture)}/nearshare/pairing/requests/{requestId:D}";
     }
 
-    private static PairingEndpointCandidate FirstEndpoint(PairingPayload payload)
+    private static IReadOnlyList<PairingEndpointCandidate> Endpoints(PairingPayload payload)
     {
-        return payload.Endpoints.FirstOrDefault()
-            ?? throw new InvalidOperationException("Pairing payload does not include a reachable endpoint.");
+        return payload.Endpoints.Count > 0
+            ? payload.Endpoints
+            : throw new InvalidOperationException("Pairing payload does not include a reachable endpoint.");
     }
 
     private static string FormatHost(string host)
@@ -139,5 +167,11 @@ public sealed class WindowsPairingClient
         return trimmed.Contains(':') && !trimmed.StartsWith('[')
             ? $"[{trimmed}]"
             : trimmed;
+    }
+
+    private static bool IsEndpointReachabilityFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        return !cancellationToken.IsCancellationRequested
+            && exception is HttpRequestException or TaskCanceledException;
     }
 }

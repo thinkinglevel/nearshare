@@ -199,7 +199,8 @@ Current status:
 
 - Android can create a private connection and display NearShare QR, Wi-Fi QR, and manual details.
 - Android can join a private connection via QR/manual details through Android system Wi-Fi APIs.
-- Windows can join using the creator's network name/password/security code.
+- Android-created private connections use the same 9-character value as the Android-hosted pairing short code.
+- Windows can join using the creator's network name/password/security / pairing code, then submit the normal pairing request over that route.
 - Transfers still require paired-device identity, pinned receiver certificates, and signed requests.
 
 Post-1.0 work:

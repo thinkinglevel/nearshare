@@ -2,6 +2,7 @@ package com.pcmobilelink.nearshare.pairing
 
 import com.pcmobilelink.nearshare.security.PinnedCertificateTls
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.URL
@@ -30,46 +31,64 @@ class PairingClient(
             receiveTlsCertificateSha256 = receiveTlsCertificateSha256,
         )
 
-        val connection = openPinnedConnection(
-            url = PairingEndpointSelector.pairingRequestsUrl(payload),
-            expectedFingerprint = payload.tlsCertificateSha256,
-        )
+        var lastEndpointException: IOException? = null
+        PairingEndpointSelector.pairingRequestsUrls(payload).forEach { url ->
+            try {
+                val connection = openPinnedConnection(
+                    url = url,
+                    expectedFingerprint = payload.tlsCertificateSha256,
+                )
 
-        connection.requestMethod = "POST"
-        connection.doOutput = true
-        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-        connection.setRequestProperty("Accept", "application/json")
-        connection.outputStream.use { stream ->
-            stream.write(body)
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                connection.setRequestProperty("Accept", "application/json")
+                connection.outputStream.use { stream ->
+                    stream.write(body)
+                }
+
+                val responseBody = readResponseOrThrow(connection, expectedCode = HttpsURLConnection.HTTP_ACCEPTED)
+                val json = JSONObject(responseBody)
+                return PairingRequestReceipt(
+                    requestId = json.getString("requestId"),
+                    status = json.getString("status"),
+                    message = json.optString("message"),
+                )
+            } catch (exception: IOException) {
+                lastEndpointException = exception
+            }
         }
 
-        val responseBody = readResponseOrThrow(connection, expectedCode = HttpsURLConnection.HTTP_ACCEPTED)
-        val json = JSONObject(responseBody)
-        return PairingRequestReceipt(
-            requestId = json.getString("requestId"),
-            status = json.getString("status"),
-            message = json.optString("message"),
-        )
+        throw IllegalStateException("Could not reach any pairing endpoint from the pairing code.", lastEndpointException)
     }
 
     fun getPairingResult(payload: PairingPayload, requestId: String): PairingRequestResult {
-        val connection = openPinnedConnection(
-            url = PairingEndpointSelector.pairingRequestResultUrl(payload, requestId),
-            expectedFingerprint = payload.tlsCertificateSha256,
-        )
-        connection.requestMethod = "GET"
-        connection.setRequestProperty("Accept", "application/json")
+        var lastEndpointException: IOException? = null
+        PairingEndpointSelector.pairingRequestResultUrls(payload, requestId).forEach { url ->
+            try {
+                val connection = openPinnedConnection(
+                    url = url,
+                    expectedFingerprint = payload.tlsCertificateSha256,
+                )
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Accept", "application/json")
 
-        val responseBody = readResponseOrThrow(connection, expectedCode = HttpsURLConnection.HTTP_OK)
-        val json = JSONObject(responseBody)
-        return PairingRequestResult(
-            requestId = json.getString("requestId"),
-            status = json.getString("status"),
-            deviceId = json.optNullableString("deviceId"),
-            deviceName = json.optNullableString("deviceName"),
-            sharedSecret = json.optNullableString("sharedSecret"),
-            message = json.optNullableString("message"),
-        )
+                val responseBody = readResponseOrThrow(connection, expectedCode = HttpsURLConnection.HTTP_OK)
+                val json = JSONObject(responseBody)
+                return PairingRequestResult(
+                    requestId = json.getString("requestId"),
+                    status = json.getString("status"),
+                    deviceId = json.optNullableString("deviceId"),
+                    deviceName = json.optNullableString("deviceName"),
+                    sharedSecret = json.optNullableString("sharedSecret"),
+                    message = json.optNullableString("message"),
+                )
+            } catch (exception: IOException) {
+                lastEndpointException = exception
+            }
+        }
+
+        throw IllegalStateException("Could not reach any pairing endpoint while waiting for approval.", lastEndpointException)
     }
 
     private fun openPinnedConnection(url: String, expectedFingerprint: String): HttpsURLConnection {

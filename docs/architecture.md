@@ -50,7 +50,7 @@ Shared protocol:
 - Android share-sheet transfers and Windows send transfers both use the paired-device transfer protocol.
 - For Windows to Android, Android must be in manual receive mode or always-on receive mode.
 - Always-on Android receive should maintain readiness through a foreground service and reconnect logic.
-- Private connection fallback provides a local route only; it never replaces pairing or signed request authentication.
+- Private connection fallback provides a local route and bootstraps normal pairing where possible; transfers still require paired-device identity and signed request authentication.
 
 ## Stack Status
 

@@ -46,7 +46,7 @@ It must never bypass:
 - signed reachability checks;
 - signed transfer-session and chunk requests.
 
-The 9-character private-connection security code is a human confirmation value for route setup. It is not a replacement for pairing and must not be treated as transfer authorization.
+The 9-character private-connection code is a human confirmation value and, where supported, a bootstrap into the normal pairing flow. It is not transfer authorization by itself; the receiving device still has to approve pairing, and transfers still require paired identity, pinned TLS, and signed requests.
 
 ## Android Always-On Receiving
 

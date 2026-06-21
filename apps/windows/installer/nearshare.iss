@@ -1,6 +1,9 @@
 #define AppName "NearShare"
 #ifndef AppVersion
-#define AppVersion "1.0"
+#define AppVersion "1.1.0"
+#endif
+#ifndef AppFileVersion
+#define AppFileVersion "1.1.0.0"
 #endif
 #ifndef SourceDir
 #define SourceDir "..\publish\win-x64"
@@ -17,6 +20,11 @@ AppPublisher=ThinkingLevel
 AppPublisherURL=https://github.com/thinkinglevel/nearshare
 AppSupportURL=https://github.com/thinkinglevel/nearshare/issues
 AppUpdatesURL=https://github.com/thinkinglevel/nearshare/releases
+VersionInfoVersion={#AppFileVersion}
+VersionInfoProductVersion={#AppVersion}
+VersionInfoProductName={#AppName}
+VersionInfoCompany=ThinkingLevel
+VersionInfoDescription=Nearby Android and Windows file sharing
 DefaultDirName={localappdata}\Programs\NearShare
 DefaultGroupName=NearShare
 DisableProgramGroupPage=yes
